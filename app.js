@@ -1,0 +1,4228 @@
+"use strict";
+
+
+// =======================================================
+// Einstellungen
+// =======================================================
+
+const COUNT_SEPARATOR = "-";
+const COUNT_WIDTH = 4;
+
+const PRODUCT_STORAGE_KEY =
+    "amazonCsvImporter_products";
+
+
+let selectedProductIndex = null;
+let editProductIndex = null;
+
+let exportOutputRows = [];
+let exportSummary = null;
+
+let products = [];
+
+
+// =======================================================
+// Produkt-Stammdaten speichern
+// =======================================================
+
+function saveProductsToStorage() {
+
+    localStorage.setItem(
+        PRODUCT_STORAGE_KEY,
+        JSON.stringify(products)
+    );
+}
+
+
+// =======================================================
+// Produkt-Stammdaten laden
+// =======================================================
+
+function loadProducts() {
+
+    const storedProducts =
+        localStorage.getItem(
+            PRODUCT_STORAGE_KEY
+        );
+
+
+    // ---------------------------------------------------
+    // Bereits gespeicherte Produktliste vorhanden
+    // ---------------------------------------------------
+
+    if (storedProducts) {
+
+        try {
+
+            const parsed =
+                JSON.parse(storedProducts);
+
+
+            if (Array.isArray(parsed)) {
+
+                products = parsed;
+
+
+                console.log(
+                    "Produktliste aus localStorage geladen:",
+                    products.length
+                );
+
+
+                return;
+            }
+
+        }
+        catch (error) {
+
+            console.error(
+                "Gespeicherte Produktliste konnte nicht gelesen werden:",
+                error
+            );
+        }
+    }
+
+
+    // ---------------------------------------------------
+    // Keine gültigen gespeicherten Daten:
+    // Standard-Produktliste übernehmen
+    // ---------------------------------------------------
+
+    products =
+        structuredClone(
+            DEFAULT_PRODUCTS
+        );
+
+
+    saveProductsToStorage();
+
+
+    console.log(
+        "Standard-Produktliste wurde in localStorage angelegt:",
+        products.length
+    );
+}
+
+
+// Beim Programmstart Produktdaten laden
+loadProducts();
+
+
+// =======================================================
+// EAN normalisieren
+// =======================================================
+
+function normalizeEan13(ean) {
+
+    if (!ean) {
+        return null;
+    }
+
+
+    let digits =
+        ean.replace(/\D/g, "");
+
+
+    // Führende Null(en) entfernen
+    digits =
+        digits.replace(/^0+/, "");
+
+
+    if (digits.length !== 13) {
+        return null;
+    }
+
+
+    return digits;
+}
+
+
+// =======================================================
+// Amazon-Dateiname analysieren
+// =======================================================
+
+function parseAmazonFilename(filename) {
+
+    // Auch versehentliche Endungen wie .csv.csv entfernen
+    const name =
+        filename.replace(
+            /(?:\.csv)+$/i,
+            ""
+        );
+
+
+    const parts =
+        name.split("_");
+
+
+    // Erwartetes Amazon-Format:
+    //
+    // TCodes_PID..._SKU_AMAZON-EAN.csv
+    if (parts.length < 4) {
+
+        return {
+            sku: null,
+            amazonEan: null,
+            ean: null
+        };
+    }
+
+
+    // Vorletzter Bestandteil = SKU
+    const sku =
+        parts[parts.length - 2];
+
+
+    // Letzter Bestandteil = Amazon-EAN
+    const amazonEan =
+        parts[parts.length - 1];
+
+
+    // ---------------------------------------------------
+    // Dateinamen-Struktur prüfen
+    //
+    // SKU:
+    // nur Ziffern
+    //
+    // Amazon-EAN:
+    // genau 14 Ziffern
+    // ---------------------------------------------------
+
+    const validSku =
+        /^\d+$/.test(sku);
+
+
+    const validAmazonEan =
+        /^\d{14}$/.test(amazonEan);
+
+
+    if (
+        !validSku ||
+        !validAmazonEan
+    ) {
+
+        return {
+            sku: null,
+            amazonEan: null,
+            ean: null
+        };
+    }
+
+
+    // ---------------------------------------------------
+    // Amazon-EAN normalisieren
+    //
+    // Beispiel:
+    //
+    // 04260476940095
+    //        ↓
+    // 4260476940095
+    // ---------------------------------------------------
+
+    const ean =
+        normalizeEan13(
+            amazonEan
+        );
+
+
+    if (!ean) {
+
+        return {
+            sku,
+            amazonEan,
+            ean: null
+        };
+    }
+
+
+    return {
+        sku,
+        amazonEan,
+        ean
+    };
+}
+
+
+// =======================================================
+// Produkt über SKU suchen
+// =======================================================
+
+function findProductBySku(sku) {
+
+    if (!sku) {
+        return null;
+    }
+
+
+    return (
+        products.find(
+            product =>
+                product.sku === sku
+        )
+        ?? null
+    );
+}
+
+
+// =======================================================
+// Produkt über EAN suchen
+// =======================================================
+
+function findProductByEan(ean) {
+
+    if (!ean) {
+        return null;
+    }
+
+
+    return (
+        products.find(
+            product =>
+                product.ean === ean
+        )
+        ?? null
+    );
+}
+
+
+// =======================================================
+// Produkt sicher auflösen
+// =======================================================
+
+function resolveProduct(sku, ean) {
+
+    const bySku =
+        findProductBySku(sku);
+
+    const byEan =
+        findProductByEan(ean);
+
+
+    // ---------------------------------------------------
+    // SKU und EAN zeigen auf unterschiedliche Produkte
+    // ---------------------------------------------------
+
+    if (
+        bySku &&
+        byEan &&
+        bySku.asin !== byEan.asin
+    ) {
+
+        return {
+            product: null,
+            method: null,
+            status: "SKU/EAN-Konflikt",
+
+            conflictDetails: {
+                skuProduct: bySku,
+                eanProduct: byEan
+            }
+        };
+    }
+
+
+    // ---------------------------------------------------
+    // SKU und EAN stimmen überein
+    // ---------------------------------------------------
+
+    if (
+        bySku &&
+        byEan
+    ) {
+
+        return {
+            product: bySku,
+            method: "SKU + EAN",
+            status: "OK",
+            conflictDetails: null
+        };
+    }
+
+
+    // ---------------------------------------------------
+    // Nur SKU gefunden
+    // ---------------------------------------------------
+
+    if (bySku) {
+
+        return {
+            product: bySku,
+            method: "SKU",
+            status: "OK",
+            conflictDetails: null
+        };
+    }
+
+
+    // ---------------------------------------------------
+    // Nur EAN gefunden
+    // ---------------------------------------------------
+
+    if (byEan) {
+
+        return {
+            product: byEan,
+            method: "EAN",
+            status: "OK",
+            conflictDetails: null
+        };
+    }
+
+
+    // ---------------------------------------------------
+    // Kein Produkt gefunden
+    // ---------------------------------------------------
+
+    return {
+        product: null,
+        method: null,
+        status: "Nicht gefunden",
+        conflictDetails: null
+    };
+}
+
+
+// =======================================================
+// Verständliche Import-Diagnose erzeugen
+// =======================================================
+
+function buildImportDiagnosis(
+    filename,
+    parsed,
+    resolution
+) {
+
+    // ---------------------------------------------------
+    // SKU/EAN-Konflikt
+    // ---------------------------------------------------
+
+    if (
+        resolution.status === "SKU/EAN-Konflikt" &&
+        resolution.conflictDetails
+    ) {
+
+        const skuProduct =
+            resolution
+                .conflictDetails
+                .skuProduct;
+
+
+        const eanProduct =
+            resolution
+                .conflictDetails
+                .eanProduct;
+
+
+        return (
+            `SKU ${parsed.sku} gehört laut Stammdaten zu `
+            + `${skuProduct.productName} / ${skuProduct.colourVariant} `
+            + `(ASIN ${skuProduct.asin}). `
+            + `EAN ${parsed.ean} gehört dagegen zu `
+            + `${eanProduct.productName} / ${eanProduct.colourVariant} `
+            + `(ASIN ${eanProduct.asin}). `
+            + `Die Datei wurde deshalb nicht importiert.`
+        );
+    }
+
+
+    // ---------------------------------------------------
+    // Dateiname konnte nicht interpretiert werden
+    // ---------------------------------------------------
+
+    if (
+        !parsed.sku &&
+        !parsed.amazonEan
+    ) {
+
+        return (
+            `Der Dateiname „${filename}“ entspricht nicht dem erwarteten `
+            + `Amazon-Dateiformat. SKU und EAN konnten nicht erkannt werden. `
+            + `Bitte prüfe den Dateinamen.`
+        );
+    }
+
+
+    // ---------------------------------------------------
+    // SKU erkannt, Amazon-EAN jedoch ungültig
+    // ---------------------------------------------------
+
+    if (
+        parsed.sku &&
+        parsed.amazonEan &&
+        !parsed.ean
+    ) {
+
+        return (
+            `Die SKU ${parsed.sku} wurde erkannt. `
+            + `Die Amazon-EAN ${parsed.amazonEan} konnte jedoch nicht `
+            + `in eine gültige 13-stellige EAN umgewandelt werden. `
+            + `Bitte prüfe den Dateinamen.`
+        );
+    }
+
+
+    // ---------------------------------------------------
+    // SKU und EAN erkannt,
+    // aber kein Produkt in den Stammdaten gefunden
+    // ---------------------------------------------------
+
+    if (
+        parsed.sku &&
+        parsed.ean
+    ) {
+
+        return (
+            `SKU ${parsed.sku} und EAN ${parsed.ean} wurden im Dateinamen erkannt, `
+            + `sind aber in den Produktstammdaten nicht vorhanden. `
+            + `Bitte prüfe die Produktliste unter „Daten → Produktliste“.`
+        );
+    }
+
+
+    // ---------------------------------------------------
+    // Nur SKU vorhanden
+    // ---------------------------------------------------
+
+    if (
+        parsed.sku &&
+        !parsed.ean
+    ) {
+
+        return (
+            `Die SKU ${parsed.sku} wurde erkannt, konnte aber keinem `
+            + `Produkt in den Stammdaten zugeordnet werden.`
+        );
+    }
+
+
+    // ---------------------------------------------------
+    // Nur EAN vorhanden
+    // ---------------------------------------------------
+
+    if (
+        !parsed.sku &&
+        parsed.ean
+    ) {
+
+        return (
+            `Die EAN ${parsed.ean} wurde erkannt, konnte aber keinem `
+            + `Produkt in den Stammdaten zugeordnet werden.`
+        );
+    }
+
+
+    // ---------------------------------------------------
+    // Sicherheits-Fallback
+    // ---------------------------------------------------
+
+    return (
+        "Die Datei konnte keinem Produkt zugeordnet werden. "
+        + "Bitte prüfe Dateiname und Produktstammdaten."
+    );
+}
+
+// =======================================================
+// CSV-Datei lesen
+// =======================================================
+
+// =======================================================
+// CSV-Datei lesen
+// =======================================================
+
+async function readTcodesFromFile(file) {
+
+    const text =
+        await file.text();
+
+
+    return text
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+}
+
+
+// =======================================================
+// Count formatieren
+// =======================================================
+
+function formatCountNumber(number) {
+
+    return String(number)
+        .padStart(
+            COUNT_WIDTH,
+            "0"
+        );
+}
+
+
+// =======================================================
+// Tabellenzelle erzeugen
+// =======================================================
+
+function addCell(row, value) {
+
+    const cell =
+        document.createElement("td");
+
+
+    cell.textContent =
+        value ?? "";
+
+
+    row.appendChild(cell);
+}
+
+
+// =======================================================
+// Kontrollzeile für erkannte Datei erzeugen
+// =======================================================
+
+function addControlRow(
+    file,
+    parsed,
+    resolution,
+    tcodeCount
+) {
+
+    const resultBody =
+        document.getElementById(
+            "resultBody"
+        );
+
+
+    const row =
+        document.createElement("tr");
+
+
+    addCell(
+        row,
+        file.name
+    );
+
+    addCell(
+        row,
+        parsed.sku ?? "Nicht erkannt"
+    );
+
+    addCell(
+        row,
+        parsed.amazonEan ?? "Nicht erkannt"
+    );
+
+    addCell(
+        row,
+        parsed.ean ?? "Nicht erkannt"
+    );
+
+    addCell(
+        row,
+        resolution.product?.asin ?? "Nicht gefunden"
+    );
+
+    addCell(
+        row,
+        tcodeCount
+    );
+
+
+    // ---------------------------------------------------
+    // Statusanzeige
+    // ---------------------------------------------------
+
+    const statusCell =
+        document.createElement("td");
+
+
+    const badge =
+        document.createElement("span");
+
+
+    badge.classList.add(
+        "status-badge"
+    );
+
+
+    if (
+        resolution.status === "OK"
+    ) {
+
+        row.classList.add(
+            "status-ok"
+        );
+
+
+        badge.classList.add(
+            "ok"
+        );
+
+
+        badge.textContent =
+            resolution.method === "SKU + EAN"
+                ? "OK"
+                : `OK (${resolution.method})`;
+
+    }
+    else if (
+        resolution.status === "SKU/EAN-Konflikt"
+    ) {
+
+        row.classList.add(
+            "status-warning"
+        );
+
+
+        badge.classList.add(
+            "warning"
+        );
+
+
+        badge.textContent =
+            "SKU/EAN-Konflikt";
+
+    }
+    else {
+
+        row.classList.add(
+            "status-error"
+        );
+
+
+        badge.classList.add(
+            "error"
+        );
+
+
+        badge.textContent =
+            "Nicht gefunden";
+    }
+
+
+    statusCell.appendChild(
+        badge
+    );
+
+
+    row.appendChild(
+        statusCell
+    );
+
+
+    resultBody.appendChild(
+        row
+    );
+}
+
+
+// =======================================================
+// Output-Zeile erzeugen
+// =======================================================
+
+function addOutputRow(
+    product,
+    tcode,
+    current,
+    total
+) {
+
+    const outputBody =
+        document.getElementById(
+            "outputBody"
+        );
+
+
+    const row =
+        document.createElement("tr");
+
+
+    const count =
+        formatCountNumber(current)
+        + COUNT_SEPARATOR
+        + formatCountNumber(total);
+
+
+    addCell(
+        row,
+        product.productName
+    );
+
+    addCell(
+        row,
+        product.colourVariant
+    );
+
+    addCell(
+        row,
+        product.manufacturerCode
+    );
+
+    addCell(
+        row,
+        product.ean
+    );
+
+    addCell(
+        row,
+        product.sku
+    );
+
+    addCell(
+        row,
+        product.pack
+    );
+
+    addCell(
+        row,
+        tcode
+    );
+
+    addCell(
+        row,
+        product.asin
+    );
+
+    addCell(
+        row,
+        count
+    );
+
+
+    outputBody.appendChild(
+        row
+    );
+
+
+    exportOutputRows.push({
+        product: product.productName,
+        colourVariant: product.colourVariant,
+        manufacturerCode: product.manufacturerCode,
+        ean: product.ean,
+        sku: product.sku,
+        pack: product.pack,
+        tcode,
+        asin: product.asin,
+        count,
+        isEndRow: false
+    });
+}
+
+
+// =======================================================
+// END-Zeile erzeugen
+// =======================================================
+
+function addEndRow(
+    product,
+    total
+) {
+
+    const outputBody =
+        document.getElementById(
+            "outputBody"
+        );
+
+
+    const row =
+        document.createElement("tr");
+
+
+    row.style.fontWeight =
+        "bold";
+
+    row.style.backgroundColor =
+        "#dddddd";
+
+
+    addCell(row, "");
+    addCell(
+        row,
+        `${product.colourVariant} END`
+    );
+    addCell(row, "");
+    addCell(row, "");
+    addCell(row, "");
+    addCell(row, total);
+    addCell(row, "");
+    addCell(row, "");
+    addCell(row, "");
+
+
+    outputBody.appendChild(
+        row
+    );
+
+
+    exportOutputRows.push({
+        product: "",
+        colourVariant:
+            `${product.colourVariant} END`,
+        manufacturerCode: "",
+        ean: "",
+        sku: "",
+        pack: total,
+        tcode: "",
+        asin: "",
+        count: "",
+        isEndRow: true
+    });
+}
+
+
+// =======================================================
+// Problemzeile im Summary erzeugen
+// =======================================================
+
+function addSummaryProblemRow(
+    filename,
+    sku,
+    ean,
+    status,
+    diagnosis
+) {
+
+    const summaryBody =
+        document.getElementById(
+            "summaryBody"
+        );
+
+
+    const row =
+        document.createElement("tr");
+
+
+    addCell(
+        row,
+        filename
+    );
+
+    addCell(
+        row,
+        sku ?? ""
+    );
+
+    addCell(
+        row,
+        ean ?? ""
+    );
+
+    addCell(
+        row,
+        status
+    );
+
+    addCell(
+        row,
+        diagnosis ?? ""
+    );
+
+
+    summaryBody.appendChild(
+        row
+    );
+}
+
+
+// =======================================================
+// Summary anzeigen
+// =======================================================
+
+function renderSummary(stats) {
+
+    const summaryStats =
+        document.getElementById(
+            "summaryStats"
+        );
+
+
+    summaryStats.innerHTML = "";
+
+
+    const lines = [
+        [
+            "Ausgewählte CSV-Dateien",
+            stats.selectedFiles
+        ],
+        [
+            "Dateien erfolgreich zugeordnet",
+            stats.resolvedFiles
+        ],
+        [
+            "Davon über SKU + EAN zugeordnet",
+            stats.resolvedByBoth
+        ],
+        [
+            "Davon nur über SKU zugeordnet",
+            stats.resolvedBySku
+        ],
+        [
+            "Davon nur über EAN zugeordnet",
+            stats.resolvedByEan
+        ],
+        [
+            "Dateien nicht gefunden",
+            stats.notFound
+        ],
+        [
+            "Dateien mit SKU/EAN-Konflikt",
+            stats.conflicts
+        ],
+        [
+            "Importierte T-Codes",
+            stats.importedTcodes
+        ],
+        [
+            "Dateien ohne T-Codes",
+            stats.emptyFiles
+        ]
+    ];
+
+
+    const table =
+        document.createElement("table");
+
+
+    table.border = "1";
+    table.cellPadding = "8";
+
+
+    for (
+        const [label, value]
+        of lines
+    ) {
+
+        const row =
+            document.createElement("tr");
+
+
+        addCell(
+            row,
+            label
+        );
+
+        addCell(
+            row,
+            value
+        );
+
+
+        table.appendChild(
+            row
+        );
+    }
+
+
+    summaryStats.appendChild(
+        table
+    );
+}
+
+
+// =======================================================
+// Zentrale Dateiverarbeitung
+//
+// Diese Funktion wird sowohl vom normalen Dateidialog
+// als auch von Drag & Drop verwendet.
+// =======================================================
+
+async function processFiles(files) {
+
+    files =
+        Array.from(files);
+
+
+    // Nur CSV-Dateien zulassen
+    files = files.filter(file =>
+        file.name.toLowerCase().endsWith(".csv")
+    );
+
+
+    if (files.length === 0) {
+
+        alert(
+            "Bitte mindestens eine CSV-Datei auswählen."
+        );
+
+        return;
+    }
+
+
+    // Ergebnisbereiche anzeigen
+    document
+        .querySelectorAll(".result-section")
+        .forEach(section => {
+
+            section.classList.add("visible");
+
+        });
+
+
+    const resultBody =
+        document.getElementById("resultBody");
+
+    const outputBody =
+        document.getElementById("outputBody");
+
+    const summaryBody =
+        document.getElementById("summaryBody");
+
+    const exportButton =
+        document.getElementById("exportButton");
+
+
+    // Alte Ergebnisse löschen
+    resultBody.innerHTML = "";
+    outputBody.innerHTML = "";
+    summaryBody.innerHTML = "";
+
+    exportOutputRows = [];
+    exportSummary = null;
+
+    exportButton.disabled = true;
+
+
+    // ---------------------------------------------------
+    // Statistik
+    // ---------------------------------------------------
+
+    const stats = {
+        selectedFiles: files.length,
+        resolvedFiles: 0,
+        resolvedByBoth: 0,
+        resolvedBySku: 0,
+        resolvedByEan: 0,
+        notFound: 0,
+        conflicts: 0,
+        emptyFiles: 0,
+        importedTcodes: 0
+    };
+
+
+    // ---------------------------------------------------
+    // Problemdateien
+    // ---------------------------------------------------
+
+    const summaryProblems = [];
+
+
+    // ---------------------------------------------------
+    // Erfolgreiche Dateien
+    // ---------------------------------------------------
+
+    const importedFiles = [];
+
+
+    // ---------------------------------------------------
+    // Dateien analysieren
+    // ---------------------------------------------------
+
+    for (const file of files) {
+
+        const parsed =
+            parseAmazonFilename(file.name);
+
+
+        const resolution =
+            resolveProduct(
+                parsed.sku,
+                parsed.ean
+            );
+
+
+        const tcodes =
+            await readTcodesFromFile(file);
+
+
+        // ------------------------------------------------
+        // Datei enthält keine T-Codes
+        // ------------------------------------------------
+
+        if (tcodes.length === 0) {
+
+            stats.emptyFiles++;
+
+
+            const diagnosis =
+                `Die Datei „${file.name}“ enthält keine T-Codes. `
+                + `Sie wurde deshalb nicht importiert.`;
+
+
+            summaryProblems.push({
+                filename: file.name,
+                sku: parsed.sku ?? "",
+                ean: parsed.ean ?? "",
+                status: "Keine T-Codes",
+                diagnosis
+            });
+
+
+            addSummaryProblemRow(
+                file.name,
+                parsed.sku,
+                parsed.ean,
+                "Keine T-Codes",
+                diagnosis
+            );
+
+
+            continue;
+        }
+
+
+        // ------------------------------------------------
+        // Kontrolltabelle
+        // ------------------------------------------------
+
+        addControlRow(
+            file,
+            parsed,
+            resolution,
+            tcodes.length
+        );
+
+
+        // ------------------------------------------------
+        // SKU/EAN-Konflikt
+        // ------------------------------------------------
+
+        if (
+            resolution.status === "SKU/EAN-Konflikt"
+        ) {
+
+            stats.conflicts++;
+
+
+            const diagnosis =
+                buildImportDiagnosis(
+                    file.name,
+                    parsed,
+                    resolution
+                );
+
+
+            summaryProblems.push({
+                filename: file.name,
+                sku: parsed.sku ?? "",
+                ean: parsed.ean ?? "",
+                status: resolution.status,
+                diagnosis
+            });
+
+
+            addSummaryProblemRow(
+                file.name,
+                parsed.sku,
+                parsed.ean,
+                resolution.status,
+                diagnosis
+            );
+
+
+            continue;
+        }
+
+
+        // ------------------------------------------------
+        // Produkt nicht gefunden
+        // ------------------------------------------------
+
+        if (!resolution.product) {
+
+            stats.notFound++;
+
+
+            const diagnosis =
+                buildImportDiagnosis(
+                    file.name,
+                    parsed,
+                    resolution
+                );
+
+
+            summaryProblems.push({
+                filename: file.name,
+                sku: parsed.sku ?? "",
+                ean: parsed.ean ?? "",
+                status: resolution.status,
+                diagnosis
+            });
+
+
+            addSummaryProblemRow(
+                file.name,
+                parsed.sku,
+                parsed.ean,
+                resolution.status,
+                diagnosis
+            );
+
+
+            continue;
+        }
+
+
+        // ------------------------------------------------
+        // Erfolgreich zugeordnet
+        // ------------------------------------------------
+
+        stats.resolvedFiles++;
+
+
+        if (
+            resolution.method === "SKU + EAN"
+        ) {
+
+            stats.resolvedByBoth++;
+
+        }
+        else if (
+            resolution.method === "SKU"
+        ) {
+
+            stats.resolvedBySku++;
+
+        }
+        else if (
+            resolution.method === "EAN"
+        ) {
+
+            stats.resolvedByEan++;
+
+        }
+
+
+        stats.importedTcodes +=
+            tcodes.length;
+
+
+        importedFiles.push({
+            file,
+            parsed,
+            product: resolution.product,
+            resolutionMethod: resolution.method,
+            tcodes
+        });
+    }
+
+
+    // ---------------------------------------------------
+    // Nach ASIN sortieren
+    // ---------------------------------------------------
+
+    importedFiles.sort(
+        (a, b) =>
+            a.product.asin.localeCompare(
+                b.product.asin
+            )
+    );
+
+
+    // ---------------------------------------------------
+    // Gesamtzahl pro ASIN
+    // ---------------------------------------------------
+
+    const totalPerAsin =
+        new Map();
+
+
+    for (const item of importedFiles) {
+
+        const asin =
+            item.product.asin;
+
+        const previous =
+            totalPerAsin.get(asin) ?? 0;
+
+
+        totalPerAsin.set(
+            asin,
+            previous + item.tcodes.length
+        );
+    }
+
+
+    // ---------------------------------------------------
+    // Laufender Zähler
+    // ---------------------------------------------------
+
+    const currentPerAsin =
+        new Map();
+
+    let previousProduct = null;
+
+
+    // ---------------------------------------------------
+    // Output erzeugen
+    // ---------------------------------------------------
+
+    for (const item of importedFiles) {
+
+        const product =
+            item.product;
+
+        const asin =
+            product.asin;
+
+
+        // ASIN-Wechsel -> END-Zeile
+        if (
+            previousProduct &&
+            previousProduct.asin !== asin
+        ) {
+
+            const previousTotal =
+                totalPerAsin.get(
+                    previousProduct.asin
+                ) ?? 0;
+
+
+            addEndRow(
+                previousProduct,
+                previousTotal
+            );
+        }
+
+
+        const total =
+            totalPerAsin.get(asin) ?? 0;
+
+
+        if (
+            !currentPerAsin.has(asin)
+        ) {
+
+            currentPerAsin.set(
+                asin,
+                0
+            );
+        }
+
+
+        for (const tcode of item.tcodes) {
+
+            let current =
+                currentPerAsin.get(asin) ?? 0;
+
+
+            current++;
+
+
+            currentPerAsin.set(
+                asin,
+                current
+            );
+
+
+            addOutputRow(
+                product,
+                tcode,
+                current,
+                total
+            );
+        }
+
+
+        previousProduct =
+            product;
+    }
+
+
+    // ---------------------------------------------------
+    // Letzte END-Zeile
+    // ---------------------------------------------------
+
+    if (previousProduct) {
+
+        const total =
+            totalPerAsin.get(
+                previousProduct.asin
+            ) ?? 0;
+
+
+        addEndRow(
+            previousProduct,
+            total
+        );
+    }
+
+
+    // ---------------------------------------------------
+    // Summary anzeigen
+    // ---------------------------------------------------
+
+    renderSummary(stats);
+
+    renderImportStatus(stats);
+
+    compactImportArea(
+        stats.selectedFiles
+    );
+
+
+    // ---------------------------------------------------
+    // Keine Problemdateien
+    // ---------------------------------------------------
+
+    if (
+        stats.notFound === 0 &&
+        stats.conflicts === 0 &&
+        stats.emptyFiles === 0
+    ) {
+
+        const row =
+            document.createElement("tr");
+
+
+        addCell(
+            row,
+            "Keine nicht zugeordneten oder fehlerhaften Dateien."
+        );
+
+        addCell(row, "");
+        addCell(row, "");
+        addCell(row, "OK");
+        addCell(row, "");
+
+
+        summaryBody.appendChild(row);
+    }
+
+
+    // ---------------------------------------------------
+    // Summary für Excel speichern
+    // ---------------------------------------------------
+
+    exportSummary = {
+        stats: { ...stats },
+        problems: summaryProblems
+    };
+
+
+    // Export aktivieren
+    exportButton.disabled =
+        exportOutputRows.length === 0;
+
+
+    console.log(
+        "Importierte Dateien:",
+        importedFiles
+    );
+
+    console.log(
+        "Summary:",
+        stats
+    );
+}
+
+
+// =======================================================
+// Normaler Dateidialog
+// =======================================================
+
+async function handleFiles(event) {
+
+    await processFiles(
+        event.target.files
+    );
+}
+
+
+// =======================================================
+// Excel-Export
+// =======================================================
+
+function exportToExcel() {
+
+    if (
+        exportOutputRows.length === 0 ||
+        !exportSummary
+    ) {
+
+        alert(
+            "Es sind noch keine Importdaten vorhanden."
+        );
+
+        return;
+    }
+
+
+    const workbook =
+        XLSX.utils.book_new();
+
+
+    // ===================================================
+    // OUTPUT
+    // ===================================================
+
+    const outputData = [
+        [
+            "Product",
+            "Colour Variant",
+            "Manufacturer Code",
+            "EAN (Barcode)",
+            "SKU",
+            "Pack",
+            "T-Code",
+            "ASIN",
+            "Count"
+        ]
+    ];
+
+
+    for (const item of exportOutputRows) {
+
+        outputData.push([
+            item.product,
+            item.colourVariant,
+            item.manufacturerCode,
+            item.ean,
+            item.sku,
+            item.pack,
+            item.tcode,
+            item.asin,
+            item.count
+        ]);
+    }
+
+
+    const outputSheet =
+        XLSX.utils.aoa_to_sheet(
+            outputData
+        );
+
+
+    // ---------------------------------------------------
+    // Spaltenbreiten
+    // ---------------------------------------------------
+
+    outputSheet["!cols"] = [
+        { wch: 24 },
+        { wch: 18 },
+        { wch: 20 },
+        { wch: 18 },
+        { wch: 12 },
+        { wch: 10 },
+        { wch: 38 },
+        { wch: 16 },
+        { wch: 14 }
+    ];
+
+
+    // ---------------------------------------------------
+    // EAN und Count als Text formatieren
+    // ---------------------------------------------------
+
+    for (
+        let row = 1;
+        row < outputData.length;
+        row++
+    ) {
+
+        const eanAddress =
+            XLSX.utils.encode_cell({
+                r: row,
+                c: 3
+            });
+
+
+        const eanCell =
+            outputSheet[eanAddress];
+
+
+        if (eanCell) {
+
+            eanCell.t = "s";
+
+            eanCell.v =
+                String(
+                    eanCell.v ?? ""
+                );
+        }
+
+
+        const countAddress =
+            XLSX.utils.encode_cell({
+                r: row,
+                c: 8
+            });
+
+
+        const countCell =
+            outputSheet[countAddress];
+
+
+        if (countCell) {
+
+            countCell.t = "s";
+
+            countCell.v =
+                String(
+                    countCell.v ?? ""
+                );
+        }
+    }
+
+
+    XLSX.utils.book_append_sheet(
+        workbook,
+        outputSheet,
+        "Output"
+    );
+
+
+    // ===================================================
+    // SUMMARY
+    // ===================================================
+
+    const stats =
+        exportSummary.stats;
+
+
+    const summaryData = [
+        [
+            "Import-Zusammenfassung",
+            ""
+        ],
+        [
+            "",
+            ""
+        ],
+        [
+            "Ausgewählte Dateien",
+            stats.selectedFiles
+        ],
+        [
+            "Erfolgreich zugeordnet",
+            stats.resolvedFiles
+        ],
+        [
+            "Zuordnung über SKU + EAN",
+            stats.resolvedByBoth
+        ],
+        [
+            "Zuordnung nur über SKU",
+            stats.resolvedBySku
+        ],
+        [
+            "Zuordnung nur über EAN",
+            stats.resolvedByEan
+        ],
+        [
+            "Nicht gefunden",
+            stats.notFound
+        ],
+        [
+            "SKU/EAN-Konflikte",
+            stats.conflicts
+        ],
+        [
+            "Dateien ohne T-Codes",
+            stats.emptyFiles
+        ],
+        [
+            "Importierte T-Codes",
+            stats.importedTcodes
+        ],
+        [
+            "",
+            ""
+        ],
+        [
+            "Dateiname",
+            "SKU",
+            "EAN",
+            "Status",
+            "Diagnose"
+        ]
+    ];
+
+
+    // ---------------------------------------------------
+    // Problemdateien
+    // ---------------------------------------------------
+
+    if (
+        exportSummary.problems.length === 0
+    ) {
+
+        summaryData.push([
+            "Keine nicht zugeordneten oder fehlerhaften Dateien.",
+            "",
+            "",
+            "OK",
+            ""
+        ]);
+
+    }
+    else {
+
+        for (
+            const problem
+            of exportSummary.problems
+        ) {
+
+            summaryData.push([
+                problem.filename,
+                problem.sku,
+                problem.ean,
+                problem.status,
+                problem.diagnosis
+            ]);
+        }
+    }
+
+
+    const summarySheet =
+        XLSX.utils.aoa_to_sheet(
+            summaryData
+        );
+
+
+    // ---------------------------------------------------
+    // Spaltenbreiten
+    // ---------------------------------------------------
+
+    summarySheet["!cols"] = [
+        { wch: 62 },
+        { wch: 14 },
+        { wch: 18 },
+        { wch: 24 },
+        { wch: 90 }
+    ];
+
+
+    XLSX.utils.book_append_sheet(
+        workbook,
+        summarySheet,
+        "Summary"
+    );
+
+
+    // ===================================================
+    // Dateiname erzeugen
+    // ===================================================
+
+    const now =
+        new Date();
+
+
+    const pad =
+        number =>
+            String(number)
+                .padStart(
+                    2,
+                    "0"
+                );
+
+
+    const filename =
+        "Amazon_Output_"
+        + now.getFullYear()
+        + pad(now.getMonth() + 1)
+        + pad(now.getDate())
+        + "_"
+        + pad(now.getHours())
+        + pad(now.getMinutes())
+        + pad(now.getSeconds())
+        + ".xlsx";
+
+
+    // ===================================================
+    // Excel-Datei herunterladen
+    // ===================================================
+
+    XLSX.writeFile(
+        workbook,
+        filename,
+        {
+            bookType: "xlsx"
+        }
+    );
+}
+
+
+function resetApplication() {
+
+    // Dateiauswahl zurücksetzen
+    const fileInput =
+        document.getElementById("fileInput");
+
+    fileInput.value = "";
+
+
+    // Tabellen leeren
+    document.getElementById("resultBody").innerHTML = "";
+    document.getElementById("outputBody").innerHTML = "";
+    document.getElementById("summaryBody").innerHTML = "";
+    document.getElementById("summaryStats").innerHTML = "";
+
+
+    // Exportdaten löschen
+    exportOutputRows = [];
+    exportSummary = null;
+
+
+    // Excel-Button deaktivieren
+    document.getElementById(
+        "exportButton"
+    ).disabled = true;
+
+
+    // Ergebnisbereiche wieder ausblenden
+    document
+        .querySelectorAll(".result-section")
+        .forEach(section => {
+
+            section.classList.remove(
+                "visible"
+            );
+
+        });
+
+    const importStatusBar =
+    document.getElementById("importStatusBar");
+
+    importStatusBar.innerHTML = "";
+
+    importStatusBar.classList.remove(
+        "visible",
+        "success",
+        "warning"
+    );
+
+    // Importbereich wieder vollständig anzeigen
+        const dropZone =
+            document.getElementById("dropZone");
+
+        const completedInfo =
+            document.getElementById(
+                "importCompletedInfo"
+            );
+
+
+        dropZone.classList.remove(
+            "compact"
+        );
+
+        completedInfo.textContent = "";
+}
+
+// =======================================================
+// Produktliste anzeigen
+// =======================================================
+
+function renderProductList(filterText = "") {
+
+    const productBody =
+        document.getElementById(
+            "productBody"
+        );
+
+    const productCount =
+        document.getElementById(
+            "productCount"
+        );
+
+    const productEdit =
+        document.getElementById(
+            "productEdit"
+        );
+
+    const productDelete =
+        document.getElementById(
+            "productDelete"
+        );
+
+
+    // ---------------------------------------------------
+    // Aktuelle Anzeige und Auswahl zurücksetzen
+    // ---------------------------------------------------
+
+    productBody.innerHTML = "";
+
+    selectedProductIndex = null;
+
+    productEdit.disabled = true;
+    productDelete.disabled = true;
+
+
+    // ---------------------------------------------------
+    // Suchbegriff vorbereiten
+    // ---------------------------------------------------
+
+    const search =
+        filterText
+            .trim()
+            .toLowerCase();
+
+
+    // ---------------------------------------------------
+    // Produktliste filtern
+    //
+    // Der ursprüngliche Index wird mitgeführt,
+    // damit Bearbeiten und Löschen weiterhin auf das
+    // richtige Produkt in "products" zugreifen.
+    // ---------------------------------------------------
+
+    const filteredProducts =
+        products
+            .map((product, index) => ({
+                product,
+                index
+            }))
+            .filter(item => {
+
+                if (!search) {
+                    return true;
+                }
+
+
+                const product =
+                    item.product;
+
+
+                return (
+                    product.productName
+                        .toLowerCase()
+                        .includes(search)
+                    ||
+                    product.colourVariant
+                        .toLowerCase()
+                        .includes(search)
+                    ||
+                    product.manufacturerCode
+                        .toLowerCase()
+                        .includes(search)
+                    ||
+                    product.ean
+                        .toLowerCase()
+                        .includes(search)
+                    ||
+                    product.sku
+                        .toLowerCase()
+                        .includes(search)
+                    ||
+                    product.pack
+                        .toLowerCase()
+                        .includes(search)
+                    ||
+                    product.asin
+                        .toLowerCase()
+                        .includes(search)
+                );
+            });
+
+
+    // ---------------------------------------------------
+    // Tabellenzeilen erzeugen
+    // ---------------------------------------------------
+
+    for (const item of filteredProducts) {
+
+        const product =
+            item.product;
+
+
+        const row =
+            document.createElement("tr");
+
+
+        addCell(
+            row,
+            product.productName
+        );
+
+        addCell(
+            row,
+            product.colourVariant
+        );
+
+        addCell(
+            row,
+            product.manufacturerCode
+        );
+
+        addCell(
+            row,
+            product.ean
+        );
+
+        addCell(
+            row,
+            product.sku
+        );
+
+        addCell(
+            row,
+            product.pack
+        );
+
+        addCell(
+            row,
+            product.asin
+        );
+
+
+        // -----------------------------------------------
+        // Produkt auswählen
+        // -----------------------------------------------
+
+        row.addEventListener(
+            "click",
+            () => {
+
+                document
+                    .querySelectorAll(
+                        "#productBody tr"
+                    )
+                    .forEach(productRow => {
+
+                        productRow.classList.remove(
+                            "selected"
+                        );
+                    });
+
+
+                row.classList.add(
+                    "selected"
+                );
+
+
+                selectedProductIndex =
+                    item.index;
+
+
+                productEdit.disabled = false;
+                productDelete.disabled = false;
+            }
+        );
+
+
+        productBody.appendChild(
+            row
+        );
+    }
+
+
+    // ---------------------------------------------------
+    // Anzahl anzeigen
+    // ---------------------------------------------------
+
+    productCount.textContent =
+        `${filteredProducts.length} von ${products.length} Produkten`;
+}
+
+
+// =======================================================
+// Produktdialog öffnen
+// =======================================================
+
+function openProductList() {
+
+    const productsDialog =
+        document.getElementById(
+            "productsDialog"
+        );
+
+    const productSearch =
+        document.getElementById(
+            "productSearch"
+        );
+
+
+    // ---------------------------------------------------
+    // Produktliste vorbereiten
+    // ---------------------------------------------------
+
+    productSearch.value = "";
+
+    renderProductList();
+
+
+    // ---------------------------------------------------
+    // Dialog öffnen und Suche aktivieren
+    // ---------------------------------------------------
+
+    productsDialog.showModal();
+
+    productSearch.focus();
+}
+
+function clearProductForm() {
+
+    document.getElementById(
+        "editProductName"
+    ).value = "";
+
+    document.getElementById(
+        "editColourVariant"
+    ).value = "";
+
+    document.getElementById(
+        "editManufacturerCode"
+    ).value = "";
+
+    document.getElementById(
+        "editEan"
+    ).value = "";
+
+    document.getElementById(
+        "editSku"
+    ).value = "";
+
+    document.getElementById(
+        "editPack"
+    ).value = "";
+
+    document.getElementById(
+        "editAsin"
+    ).value = "";
+}
+
+
+function fillProductForm(product) {
+
+    document.getElementById(
+        "editProductName"
+    ).value =
+        product.productName;
+
+
+    document.getElementById(
+        "editColourVariant"
+    ).value =
+        product.colourVariant;
+
+
+    document.getElementById(
+        "editManufacturerCode"
+    ).value =
+        product.manufacturerCode;
+
+
+    document.getElementById(
+        "editEan"
+    ).value =
+        product.ean;
+
+
+    document.getElementById(
+        "editSku"
+    ).value =
+        product.sku;
+
+
+    document.getElementById(
+        "editPack"
+    ).value =
+        product.pack;
+
+
+    document.getElementById(
+        "editAsin"
+    ).value =
+        product.asin;
+}
+
+
+function openNewProduct() {
+
+    editProductIndex = null;
+
+
+    document.getElementById(
+        "productEditTitle"
+    ).textContent =
+        "Neues Produkt";
+
+
+    clearProductForm();
+
+
+    document.getElementById(
+        "productEditDialog"
+    ).showModal();
+}
+
+
+function openEditProduct() {
+
+    if (
+        selectedProductIndex === null
+    ) {
+        return;
+    }
+
+
+    editProductIndex =
+        selectedProductIndex;
+
+
+    const product =
+        products[editProductIndex];
+
+
+    document.getElementById(
+        "productEditTitle"
+    ).textContent =
+        "Produkt bearbeiten";
+
+
+    fillProductForm(
+        product
+    );
+
+
+    document.getElementById(
+        "productEditDialog"
+    ).showModal();
+}
+
+// =======================================================
+// Dublettenprüfung für Produktliste
+// =======================================================
+
+function findDuplicateProductFields(productList) {
+
+    const duplicates = [];
+
+    const fieldsToCheck = [
+        {
+            key: "asin",
+            label: "ASIN"
+        },
+        {
+            key: "sku",
+            label: "SKU"
+        },
+        {
+            key: "ean",
+            label: "EAN"
+        }
+    ];
+
+
+    for (const field of fieldsToCheck) {
+
+        const seen =
+            new Map();
+
+
+        productList.forEach(
+            (product, index) => {
+
+                const value =
+                    String(
+                        product[field.key] ?? ""
+                    )
+                        .trim()
+                        .toUpperCase();
+
+
+                if (!value) {
+                    return;
+                }
+
+
+                if (
+                    seen.has(value)
+                ) {
+
+                    duplicates.push({
+                        field: field.label,
+                        value,
+                        firstIndex:
+                            seen.get(value),
+                        secondIndex:
+                            index
+                    });
+
+                }
+                else {
+
+                    seen.set(
+                        value,
+                        index
+                    );
+                }
+            }
+        );
+    }
+
+
+    return duplicates;
+}
+
+
+// =======================================================
+// Formularvalidierung
+// =======================================================
+
+function clearProductValidation() {
+
+    document
+        .querySelectorAll(
+            ".product-form input"
+        )
+        .forEach(input => {
+
+            input.classList.remove(
+                "invalid"
+            );
+        });
+}
+
+
+function markInvalid(inputId) {
+
+    const input =
+        document.getElementById(
+            inputId
+        );
+
+
+    input.classList.add(
+        "invalid"
+    );
+
+
+    input.focus();
+}
+// =======================================================
+// EAN-13 Prüfziffer validieren
+// =======================================================
+
+function isValidEan13(ean) {
+
+    // ---------------------------------------------------
+    // EAN muss genau 13 Ziffern enthalten
+    // ---------------------------------------------------
+
+    if (
+        !/^\d{13}$/.test(ean)
+    ) {
+        return false;
+    }
+
+
+    let sum = 0;
+
+
+    // ---------------------------------------------------
+    // Prüfsumme aus den ersten 12 Ziffern berechnen
+    //
+    // Position 1, 3, 5, ...  -> Faktor 1
+    // Position 2, 4, 6, ...  -> Faktor 3
+    // ---------------------------------------------------
+
+    for (
+        let index = 0;
+        index < 12;
+        index++
+    ) {
+
+        const digit =
+            Number(
+                ean[index]
+            );
+
+
+        const factor =
+            index % 2 === 0
+                ? 1
+                : 3;
+
+
+        sum +=
+            digit * factor;
+    }
+
+
+    // ---------------------------------------------------
+    // Erwartete Prüfziffer berechnen
+    // ---------------------------------------------------
+
+    const checkDigit =
+        (10 - (sum % 10)) % 10;
+
+
+    return (
+        checkDigit ===
+        Number(ean[12])
+    );
+}
+
+function validateProductForm(product) {
+
+    clearProductValidation();
+
+
+    // ---------------------------------------------------
+    // Produktname
+    // ---------------------------------------------------
+
+    if (!product.productName) {
+
+        markInvalid(
+            "editProductName"
+        );
+
+        alert(
+            "Bitte einen Produktnamen eintragen."
+        );
+
+        return false;
+    }
+
+
+    // ---------------------------------------------------
+    // Colour Variant
+    // ---------------------------------------------------
+
+    if (!product.colourVariant) {
+
+        markInvalid(
+            "editColourVariant"
+        );
+
+        alert(
+            "Bitte eine Colour Variant eintragen."
+        );
+
+        return false;
+    }
+
+
+    // ---------------------------------------------------
+    // Manufacturer Code
+    // ---------------------------------------------------
+
+    if (!product.manufacturerCode) {
+
+        markInvalid(
+            "editManufacturerCode"
+        );
+
+        alert(
+            "Bitte einen Manufacturer Code eintragen."
+        );
+
+        return false;
+    }
+
+
+    // ---------------------------------------------------
+    // EAN: Format
+    // ---------------------------------------------------
+
+    if (
+        !/^\d{13}$/.test(
+            product.ean
+        )
+    ) {
+
+        markInvalid(
+            "editEan"
+        );
+
+        alert(
+            "Die EAN muss genau 13 Ziffern enthalten."
+        );
+
+        return false;
+    }
+
+
+    // ---------------------------------------------------
+    // EAN: Prüfziffer
+    // ---------------------------------------------------
+
+    if (
+        !isValidEan13(
+            product.ean
+        )
+    ) {
+
+        markInvalid(
+            "editEan"
+        );
+
+        alert(
+            "Die EAN ist ungültig.\n\n"
+            + "Die Prüfziffer stimmt nicht."
+        );
+
+        return false;
+    }
+
+
+    // ---------------------------------------------------
+    // SKU
+    // ---------------------------------------------------
+
+    if (
+        !/^\d+$/.test(
+            product.sku
+        )
+    ) {
+
+        markInvalid(
+            "editSku"
+        );
+
+        alert(
+            "Die SKU darf nur aus Ziffern bestehen."
+        );
+
+        return false;
+    }
+
+
+    // ---------------------------------------------------
+    // Pack
+    // ---------------------------------------------------
+
+    if (!product.pack) {
+
+        markInvalid(
+            "editPack"
+        );
+
+        alert(
+            "Bitte Pack eintragen."
+        );
+
+        return false;
+    }
+
+
+    // ---------------------------------------------------
+    // ASIN
+    // ---------------------------------------------------
+
+    if (
+        !/^[A-Z0-9]{10}$/.test(
+            product.asin
+        )
+    ) {
+
+        markInvalid(
+            "editAsin"
+        );
+
+        alert(
+            "Die ASIN muss genau 10 Zeichen enthalten "
+            + "und darf nur aus Buchstaben und Ziffern bestehen."
+        );
+
+        return false;
+    }
+
+
+    return true;
+}
+
+function saveProductFromForm() {
+
+    const product = {
+
+        productName:
+            document.getElementById(
+                "editProductName"
+            )
+                .value
+                .trim(),
+
+        colourVariant:
+            document.getElementById(
+                "editColourVariant"
+            )
+                .value
+                .trim(),
+
+        manufacturerCode:
+            document.getElementById(
+                "editManufacturerCode"
+            )
+                .value
+                .trim(),
+
+        ean:
+            document.getElementById(
+                "editEan"
+            )
+                .value
+                .trim(),
+
+        sku:
+            document.getElementById(
+                "editSku"
+            )
+                .value
+                .trim(),
+
+        pack:
+            document.getElementById(
+                "editPack"
+            )
+                .value
+                .trim(),
+
+        asin:
+            document.getElementById(
+                "editAsin"
+            )
+                .value
+                .trim()
+                .toUpperCase()
+    };
+
+
+    // ---------------------------------------------------
+    // Formulardaten prüfen
+    // ---------------------------------------------------
+
+    if (
+        !validateProductForm(
+            product
+        )
+    ) {
+        return;
+    }
+
+
+    // ---------------------------------------------------
+    // Temporäre Produktliste für Dublettenprüfung
+    // ---------------------------------------------------
+
+    const testProducts =
+        structuredClone(
+            products
+        );
+
+
+    if (
+        editProductIndex === null
+    ) {
+
+        testProducts.push(
+            product
+        );
+
+    }
+    else {
+
+        testProducts[editProductIndex] =
+            product;
+    }
+
+
+    // ---------------------------------------------------
+    // Dublettenprüfung
+    // ---------------------------------------------------
+
+    const duplicates =
+        findDuplicateProductFields(
+            testProducts
+        );
+
+
+    if (
+        duplicates.length > 0
+    ) {
+
+        const first =
+            duplicates[0];
+
+
+        alert(
+            "Das Produkt kann nicht gespeichert werden.\n\n"
+            + `${first.field} doppelt vorhanden:\n`
+            + `${first.value}`
+        );
+
+
+        return;
+    }
+
+
+    // ---------------------------------------------------
+    // Produkt übernehmen
+    // ---------------------------------------------------
+
+    if (
+        editProductIndex === null
+    ) {
+
+        products.push(
+            product
+        );
+
+    }
+    else {
+
+        products[editProductIndex] =
+            product;
+    }
+
+
+    // ---------------------------------------------------
+    // Produktdaten speichern
+    // ---------------------------------------------------
+
+    saveProductsToStorage();
+
+
+    // ---------------------------------------------------
+    // Dialog schließen
+    // ---------------------------------------------------
+
+    document.getElementById(
+        "productEditDialog"
+    ).close();
+
+
+    // ---------------------------------------------------
+    // Produktliste aktualisieren
+    // ---------------------------------------------------
+
+    const searchText =
+        document.getElementById(
+            "productSearch"
+        ).value;
+
+
+    renderProductList(
+        searchText
+    );
+}
+
+// =======================================================
+// ASIN automatisch in Großbuchstaben umwandeln
+// =======================================================
+
+const editAsin =
+    document.getElementById(
+        "editAsin"
+    );
+
+
+editAsin.addEventListener(
+    "input",
+    event => {
+
+        event.target.value =
+            event.target.value
+                .toUpperCase();
+    }
+);
+
+
+function deleteSelectedProduct() {
+
+    if (
+        selectedProductIndex === null
+    ) {
+        return;
+    }
+
+
+    const product =
+        products[selectedProductIndex];
+
+
+    // ---------------------------------------------------
+    // Löschung bestätigen
+    // ---------------------------------------------------
+
+    const confirmed =
+        confirm(
+            `Produkt wirklich löschen?\n\n`
+            + `${product.productName}\n`
+            + `${product.colourVariant}\n`
+            + `ASIN: ${product.asin}`
+        );
+
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    // ---------------------------------------------------
+    // Produkt entfernen und Stammdaten speichern
+    // ---------------------------------------------------
+
+    products.splice(
+        selectedProductIndex,
+        1
+    );
+
+
+    saveProductsToStorage();
+
+    selectedProductIndex = null;
+
+
+    // ---------------------------------------------------
+    // Produktliste aktualisieren
+    // ---------------------------------------------------
+
+    const searchText =
+        document.getElementById(
+            "productSearch"
+        ).value;
+
+
+    renderProductList(
+        searchText
+    );
+}
+
+// =======================================================
+// Produktliste als JSON exportieren
+// =======================================================
+
+function exportProductsJson() {
+
+    if (
+        !Array.isArray(products) ||
+        products.length === 0
+    ) {
+
+        alert(
+            "Es sind keine Produktdaten zum Exportieren vorhanden."
+        );
+
+        return;
+    }
+
+
+    // ---------------------------------------------------
+    // Produktdaten als JSON erzeugen
+    // ---------------------------------------------------
+
+    const json =
+        JSON.stringify(
+            products,
+            null,
+            2
+        );
+
+
+    const blob =
+        new Blob(
+            [json],
+            {
+                type: "application/json;charset=utf-8"
+            }
+        );
+
+
+    const url =
+        URL.createObjectURL(
+            blob
+        );
+
+
+    // ---------------------------------------------------
+    // Dateiname mit Zeitstempel erzeugen
+    // ---------------------------------------------------
+
+    const now =
+        new Date();
+
+
+    const pad =
+        number =>
+            String(number)
+                .padStart(
+                    2,
+                    "0"
+                );
+
+
+    const filename =
+        "products_"
+        + now.getFullYear()
+        + pad(now.getMonth() + 1)
+        + pad(now.getDate())
+        + "_"
+        + pad(now.getHours())
+        + pad(now.getMinutes())
+        + pad(now.getSeconds())
+        + ".json";
+
+
+    // ---------------------------------------------------
+    // JSON-Datei herunterladen
+    // ---------------------------------------------------
+
+    const link =
+        document.createElement("a");
+
+
+    link.href =
+        url;
+
+    link.download =
+        filename;
+
+
+    document.body.appendChild(
+        link
+    );
+
+
+    link.click();
+
+    link.remove();
+
+
+    // Temporäre Objekt-URL wieder freigeben
+    URL.revokeObjectURL(
+        url
+    );
+}
+
+// =======================================================
+// Einzelnen Produktdatensatz prüfen
+// =======================================================
+
+function isValidProduct(product) {
+
+    // ---------------------------------------------------
+    // Produkt muss ein Objekt sein
+    // ---------------------------------------------------
+
+    if (
+        typeof product !== "object" ||
+        product === null
+    ) {
+        return false;
+    }
+
+
+    // ---------------------------------------------------
+    // Erforderliche Felder prüfen
+    // ---------------------------------------------------
+
+    const requiredFields = [
+        "productName",
+        "colourVariant",
+        "manufacturerCode",
+        "ean",
+        "sku",
+        "pack",
+        "asin"
+    ];
+
+
+    for (const field of requiredFields) {
+
+        if (
+            typeof product[field] !== "string"
+        ) {
+            return false;
+        }
+    }
+
+
+    // ---------------------------------------------------
+    // ASIN darf nicht leer sein
+    // ---------------------------------------------------
+
+    if (
+        !product.asin.trim()
+    ) {
+        return false;
+    }
+
+
+    return true;
+}
+// =======================================================
+// Gesamte Produktliste prüfen
+// =======================================================
+
+function validateProductList(data) {
+
+    // ---------------------------------------------------
+    // Produktliste muss ein Array sein
+    // ---------------------------------------------------
+
+    if (
+        !Array.isArray(data)
+    ) {
+
+        return {
+            valid: false,
+            message:
+                "Die JSON-Datei enthält keine Produktliste."
+        };
+    }
+
+
+    // ---------------------------------------------------
+    // Produktliste darf nicht leer sein
+    // ---------------------------------------------------
+
+    if (
+        data.length === 0
+    ) {
+
+        return {
+            valid: false,
+            message:
+                "Die Produktliste ist leer."
+        };
+    }
+
+
+    // ---------------------------------------------------
+    // Jeden Datensatz prüfen
+    // ---------------------------------------------------
+
+    for (
+        let index = 0;
+        index < data.length;
+        index++
+    ) {
+
+        if (
+            !isValidProduct(
+                data[index]
+            )
+        ) {
+
+            return {
+                valid: false,
+                message:
+                    `Datensatz ${index + 1} hat ein ungültiges Format.`
+            };
+        }
+    }
+
+
+    // ---------------------------------------------------
+    // Produktliste ist grundsätzlich gültig
+    // ---------------------------------------------------
+
+    return {
+        valid: true,
+        message: ""
+    };
+}
+
+// =======================================================
+// Produktliste aus JSON importieren
+// =======================================================
+
+async function importProductsJson(file) {
+
+    if (!file) {
+        return;
+    }
+
+
+    try {
+
+        // ---------------------------------------------------
+        // JSON-Datei lesen
+        // ---------------------------------------------------
+
+        const text =
+            await file.text();
+
+
+        const importedData =
+            JSON.parse(
+                text
+            );
+
+
+        // ---------------------------------------------------
+        // Grundstruktur prüfen
+        // ---------------------------------------------------
+
+        const validation =
+            validateProductList(
+                importedData
+            );
+
+
+        if (
+            !validation.valid
+        ) {
+
+            alert(
+                "Die Produktliste konnte nicht importiert werden.\n\n"
+                + validation.message
+            );
+
+            return;
+        }
+
+
+        // ---------------------------------------------------
+        // Dubletten prüfen
+        // ---------------------------------------------------
+
+        const duplicates =
+            findDuplicateProductFields(
+                importedData
+            );
+
+
+        if (
+            duplicates.length > 0
+        ) {
+
+            const first =
+                duplicates[0];
+
+
+            alert(
+                "Die Produktliste konnte nicht importiert werden.\n\n"
+                + `${first.field} doppelt vorhanden:\n`
+                + `${first.value}`
+            );
+
+            return;
+        }
+
+
+        // ---------------------------------------------------
+        // Sicherheitsabfrage
+        // ---------------------------------------------------
+
+        const confirmed =
+            confirm(
+                "Die aktuelle Produktliste wird vollständig ersetzt.\n\n"
+                + `Neue Produktliste: ${importedData.length} Produkte\n\n`
+                + "Möchtest du fortfahren?"
+            );
+
+
+        if (!confirmed) {
+            return;
+        }
+
+
+        // ---------------------------------------------------
+        // Produktdaten übernehmen
+        // ---------------------------------------------------
+
+        products =
+            structuredClone(
+                importedData
+            );
+
+
+        saveProductsToStorage();
+
+
+        // ---------------------------------------------------
+        // Suche zurücksetzen
+        // ---------------------------------------------------
+
+        const productSearch =
+            document.getElementById(
+                "productSearch"
+            );
+
+
+        productSearch.value = "";
+
+
+        // ---------------------------------------------------
+        // Produktliste aktualisieren
+        // ---------------------------------------------------
+
+        renderProductList();
+
+
+        alert(
+            `${products.length} Produkte wurden erfolgreich importiert.`
+        );
+
+    }
+    catch (error) {
+
+        console.error(
+            "Fehler beim JSON-Import:",
+            error
+        );
+
+
+        alert(
+            "Die JSON-Datei konnte nicht gelesen werden.\n\n"
+            + error.message
+        );
+    }
+}
+
+// =======================================================
+// Produktliste auf Standard zurücksetzen
+// =======================================================
+
+function resetProductsToDefaults() {
+
+    // ---------------------------------------------------
+    // Zurücksetzen bestätigen
+    // ---------------------------------------------------
+
+    const confirmed =
+        confirm(
+            "Möchtest du die Produktliste wirklich auf den Standard zurücksetzen?\n\n"
+            + "Alle aktuell gespeicherten Änderungen werden dabei überschrieben."
+        );
+
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    // ---------------------------------------------------
+    // Standard-Produktdaten übernehmen
+    // ---------------------------------------------------
+
+    products =
+        structuredClone(
+            DEFAULT_PRODUCTS
+        );
+
+
+    // ---------------------------------------------------
+    // Produktdaten speichern
+    // ---------------------------------------------------
+
+    saveProductsToStorage();
+
+
+    // ---------------------------------------------------
+    // Suche zurücksetzen
+    // ---------------------------------------------------
+
+    const productSearch =
+        document.getElementById(
+            "productSearch"
+        );
+
+
+    productSearch.value = "";
+
+
+    // ---------------------------------------------------
+    // Auswahl und Bearbeitungsstatus zurücksetzen
+    // ---------------------------------------------------
+
+    selectedProductIndex = null;
+    editProductIndex = null;
+
+
+    // ---------------------------------------------------
+    // Produktliste aktualisieren
+    // ---------------------------------------------------
+
+    renderProductList();
+
+
+    alert(
+        `${products.length} Standard-Produkte wurden wiederhergestellt.`
+    );
+}
+
+// =======================================================
+// Kompakte Import-Statusleiste
+// =======================================================
+
+function renderImportStatus(stats) {
+
+    const statusBar =
+        document.getElementById(
+            "importStatusBar"
+        );
+
+
+    // ---------------------------------------------------
+    // Anzahl der Problemdateien
+    // ---------------------------------------------------
+
+    const problemCount =
+        stats.conflicts
+        + stats.notFound
+        + stats.emptyFiles;
+
+
+    statusBar.innerHTML = "";
+
+
+    // ---------------------------------------------------
+    // Statustexte erzeugen
+    // ---------------------------------------------------
+
+    const fileText =
+        stats.selectedFiles === 1
+            ? "1 Datei"
+            : `${stats.selectedFiles} Dateien`;
+
+
+    const problemText =
+        problemCount === 1
+            ? "1 Problem"
+            : `${problemCount} Probleme`;
+
+
+    const tcodeText =
+        stats.importedTcodes === 1
+            ? "1 T-Code"
+            : `${stats.importedTcodes} T-Codes`;
+
+
+    const items = [
+        fileText,
+        `${stats.resolvedFiles} OK`,
+        problemText,
+        tcodeText
+    ];
+
+
+    // ---------------------------------------------------
+    // Statusfelder erzeugen
+    // ---------------------------------------------------
+
+    for (const text of items) {
+
+        const item =
+            document.createElement(
+                "span"
+            );
+
+
+        item.classList.add(
+            "import-status-item"
+        );
+
+
+        item.textContent =
+            text;
+
+
+        // -----------------------------------------------
+        // Problemfeld anklickbar machen
+        // -----------------------------------------------
+
+        if (
+            text === problemText &&
+            problemCount > 0
+        ) {
+
+            item.classList.add(
+                "import-status-problem"
+            );
+
+
+            item.title =
+                "Zu den Problemen springen";
+
+
+            item.addEventListener(
+                "click",
+                () => {
+
+                    const summarySection =
+                        document.getElementById(
+                            "summarySection"
+                        );
+
+
+                    if (summarySection) {
+
+                        summarySection.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start"
+                        });
+
+                    }
+                    else {
+
+                        console.error(
+                            "Summary-Bereich mit id='summarySection' wurde nicht gefunden."
+                        );
+                    }
+                }
+            );
+        }
+
+
+        statusBar.appendChild(
+            item
+        );
+    }
+
+
+    // ---------------------------------------------------
+    // Statusfarbe setzen
+    // ---------------------------------------------------
+
+    statusBar.classList.remove(
+        "success",
+        "warning"
+    );
+
+
+    if (
+        problemCount === 0
+    ) {
+
+        statusBar.classList.add(
+            "success"
+        );
+
+    }
+    else {
+
+        statusBar.classList.add(
+            "warning"
+        );
+    }
+
+
+    // ---------------------------------------------------
+    // Statusleiste anzeigen
+    // ---------------------------------------------------
+
+    statusBar.classList.add(
+        "visible"
+    );
+}
+
+// =======================================================
+// Importbereich kompakt anzeigen
+// =======================================================
+
+function compactImportArea(fileCount) {
+
+    const dropZone =
+        document.getElementById(
+            "dropZone"
+        );
+
+    const completedInfo =
+        document.getElementById(
+            "importCompletedInfo"
+        );
+
+
+    // ---------------------------------------------------
+    // Abschlusstext erzeugen
+    // ---------------------------------------------------
+
+    const fileText =
+        fileCount === 1
+            ? "1 CSV-Datei verarbeitet"
+            : `${fileCount} CSV-Dateien verarbeitet`;
+
+
+    completedInfo.textContent =
+        `✓ ${fileText}`;
+
+
+    // ---------------------------------------------------
+    // Importbereich verkleinern
+    // ---------------------------------------------------
+
+    dropZone.classList.add(
+        "compact"
+    );
+}
+
+// =======================================================
+// Versionsinfo im Footer anzeigen
+// =======================================================
+
+function renderAppInfo() {
+
+    const footer =
+        document.getElementById(
+            "footerAppInfo"
+        );
+
+
+    footer.textContent =
+        `${APP_INFO.name} · Version ${APP_INFO.version}`;
+}
+
+
+// =======================================================
+// Info-Dialog mit Anwendungsdaten füllen
+// =======================================================
+
+function fillAboutDialog() {
+
+    document.getElementById(
+        "aboutAppName"
+    ).textContent =
+        APP_INFO.name;
+
+
+    document.getElementById(
+        "aboutVersion"
+    ).textContent =
+        `Version: ${APP_INFO.version}`;
+
+
+    document.getElementById(
+        "aboutBuildDate"
+    ).textContent =
+        `Build-Datum: ${APP_INFO.buildDate}`;
+
+
+    document.getElementById(
+        "aboutAuthor"
+    ).textContent =
+        `Autor: ${APP_INFO.author}`;
+}
+
+
+// =======================================================
+// Versionsinfo beim Programmstart anzeigen
+// =======================================================
+
+renderAppInfo();
+
+function renderChangelog() {
+
+    const container =
+        document.getElementById(
+            "changelogContent"
+        );
+
+
+    container.innerHTML = "";
+
+
+    // ---------------------------------------------------
+    // Releases erzeugen
+    // ---------------------------------------------------
+
+    for (
+        const release
+        of APP_INFO.changelog
+    ) {
+
+        const section =
+            document.createElement(
+                "section"
+            );
+
+
+        section.className =
+            "changelog-release";
+
+
+        // -----------------------------------------------
+        // Versionsnummer
+        // -----------------------------------------------
+
+        const title =
+            document.createElement(
+                "h3"
+            );
+
+
+        title.textContent =
+            `Version ${release.version}`;
+
+
+        // -----------------------------------------------
+        // Veröffentlichungsdatum
+        // -----------------------------------------------
+
+        const date =
+            document.createElement(
+                "div"
+            );
+
+
+        date.className =
+            "changelog-date";
+
+
+        date.textContent =
+            release.date;
+
+
+        // -----------------------------------------------
+        // Änderungen
+        // -----------------------------------------------
+
+        const list =
+            document.createElement(
+                "ul"
+            );
+
+
+        for (
+            const change
+            of release.changes
+        ) {
+
+            const item =
+                document.createElement(
+                    "li"
+                );
+
+
+            item.textContent =
+                change;
+
+
+            list.appendChild(
+                item
+            );
+        }
+
+
+        // -----------------------------------------------
+        // Release zusammensetzen
+        // -----------------------------------------------
+
+        section.appendChild(
+            title
+        );
+
+        section.appendChild(
+            date
+        );
+
+        section.appendChild(
+            list
+        );
+
+
+        container.appendChild(
+            section
+        );
+    }
+}
+// =======================================================
+// Events
+// =======================================================
+
+
+// -------------------------------------------------------
+// Dateiauswahl
+// -------------------------------------------------------
+
+document
+    .getElementById(
+        "fileInput"
+    )
+    .addEventListener(
+        "change",
+        handleFiles
+    );
+
+
+// -------------------------------------------------------
+// Excel-Export
+// -------------------------------------------------------
+
+document
+    .getElementById(
+        "exportButton"
+    )
+    .addEventListener(
+        "click",
+        exportToExcel
+    );
+
+
+// -------------------------------------------------------
+// Neuer Import
+// -------------------------------------------------------
+
+document
+    .getElementById(
+        "menuNew"
+    )
+    .addEventListener(
+        "click",
+        resetApplication
+    );
+
+
+// -------------------------------------------------------
+// Hilfe- und Info-Dialoge
+// -------------------------------------------------------
+
+const helpDialog =
+    document.getElementById(
+        "helpDialog"
+    );
+
+
+const aboutDialog =
+    document.getElementById(
+        "aboutDialog"
+    );
+
+
+document
+    .getElementById(
+        "menuHelp"
+    )
+    .addEventListener(
+        "click",
+        () => {
+
+            helpDialog.showModal();
+        }
+    );
+
+
+document
+    .getElementById(
+        "closeHelp"
+    )
+    .addEventListener(
+        "click",
+        () => {
+
+            helpDialog.close();
+        }
+    );
+
+
+document
+    .getElementById(
+        "menuAbout"
+    )
+    .addEventListener(
+        "click",
+        () => {
+
+            fillAboutDialog();
+
+            aboutDialog.showModal();
+        }
+    );
+
+
+document
+    .getElementById(
+        "closeAbout"
+    )
+    .addEventListener(
+        "click",
+        () => {
+
+            aboutDialog.close();
+        }
+    );
+
+
+// -------------------------------------------------------
+// Produktverwaltung
+// -------------------------------------------------------
+
+document
+    .getElementById(
+        "productNew"
+    )
+    .addEventListener(
+        "click",
+        openNewProduct
+    );
+
+
+document
+    .getElementById(
+        "productEdit"
+    )
+    .addEventListener(
+        "click",
+        openEditProduct
+    );
+
+
+document
+    .getElementById(
+        "productDelete"
+    )
+    .addEventListener(
+        "click",
+        deleteSelectedProduct
+    );
+
+
+document
+    .getElementById(
+        "productEditCancel"
+    )
+    .addEventListener(
+        "click",
+        () => {
+
+            document
+                .getElementById(
+                    "productEditDialog"
+                )
+                .close();
+        }
+    );
+
+
+document
+    .getElementById(
+        "productEditSave"
+    )
+    .addEventListener(
+        "click",
+        saveProductFromForm
+    );
+
+
+document
+    .getElementById(
+        "productResetDefaults"
+    )
+    .addEventListener(
+        "click",
+        resetProductsToDefaults
+    );
+
+
+// =======================================================
+// JSON Import / Export Produktliste
+// =======================================================
+
+const productJsonFileInput =
+    document.getElementById(
+        "productJsonFileInput"
+    );
+
+
+// -------------------------------------------------------
+// Produktliste als JSON exportieren
+// -------------------------------------------------------
+
+document
+    .getElementById(
+        "productExportJson"
+    )
+    .addEventListener(
+        "click",
+        exportProductsJson
+    );
+
+
+// -------------------------------------------------------
+// JSON-Datei für Import auswählen
+// -------------------------------------------------------
+
+document
+    .getElementById(
+        "productImportJson"
+    )
+    .addEventListener(
+        "click",
+        () => {
+
+            // Wert zurücksetzen, damit auch dieselbe
+            // Datei erneut ausgewählt werden kann
+            productJsonFileInput.value = "";
+
+            productJsonFileInput.click();
+        }
+    );
+
+
+// -------------------------------------------------------
+// Ausgewählte JSON-Datei importieren
+// -------------------------------------------------------
+
+productJsonFileInput
+    .addEventListener(
+        "change",
+        async event => {
+
+            const file =
+                event.target.files[0];
+
+
+            await importProductsJson(
+                file
+            );
+        }
+    );
+
+
+
+// =======================================================
+// Produktliste
+// =======================================================
+
+const productsDialog =
+    document.getElementById(
+        "productsDialog"
+    );
+
+
+const productSearch =
+    document.getElementById(
+        "productSearch"
+    );
+
+
+// -------------------------------------------------------
+// Produktliste öffnen
+// -------------------------------------------------------
+
+document
+    .getElementById(
+        "menuProducts"
+    )
+    .addEventListener(
+        "click",
+        openProductList
+    );
+
+
+// -------------------------------------------------------
+// Produktliste schließen
+// -------------------------------------------------------
+
+document
+    .getElementById(
+        "closeProducts"
+    )
+    .addEventListener(
+        "click",
+        () => {
+
+            productsDialog.close();
+        }
+    );
+
+
+// -------------------------------------------------------
+// Produktliste während der Eingabe filtern
+// -------------------------------------------------------
+
+productSearch.addEventListener(
+    "input",
+    event => {
+
+        renderProductList(
+            event.target.value
+        );
+    }
+);
+
+// =======================================================
+// Drag & Drop
+// =======================================================
+
+// =======================================================
+// Drag & Drop
+// =======================================================
+
+const dropZone =
+    document.getElementById(
+        "dropZone"
+    );
+
+
+if (dropZone) {
+
+    // ---------------------------------------------------
+    // Browser-Standardverhalten verhindern
+    // ---------------------------------------------------
+
+    [
+        "dragenter",
+        "dragover",
+        "dragleave",
+        "drop"
+    ].forEach(eventName => {
+
+        dropZone.addEventListener(
+            eventName,
+            event => {
+
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        );
+    });
+
+
+    // ---------------------------------------------------
+    // Drag-&-Drop-Hervorhebung einschalten
+    // ---------------------------------------------------
+
+    [
+        "dragenter",
+        "dragover"
+    ].forEach(eventName => {
+
+        dropZone.addEventListener(
+            eventName,
+            () => {
+
+                dropZone.classList.add(
+                    "drag-over"
+                );
+            }
+        );
+    });
+
+
+    // ---------------------------------------------------
+    // Drag-&-Drop-Hervorhebung ausschalten
+    // ---------------------------------------------------
+
+    [
+        "dragleave",
+        "drop"
+    ].forEach(eventName => {
+
+        dropZone.addEventListener(
+            eventName,
+            () => {
+
+                dropZone.classList.remove(
+                    "drag-over"
+                );
+            }
+        );
+    });
+
+
+    // ---------------------------------------------------
+    // Abgelegte Dateien verarbeiten
+    // ---------------------------------------------------
+
+    dropZone.addEventListener(
+        "drop",
+        async event => {
+
+            const files =
+                event.dataTransfer.files;
+
+
+            await processFiles(
+                files
+            );
+        }
+    );
+
+}
+else {
+
+    console.error(
+        "Drag-&-Drop-Bereich mit id='dropZone' wurde nicht gefunden."
+    );
+}
+
+// =======================================================
+// Service Worker registrieren
+// =======================================================
+
+
+
+if (
+    "serviceWorker" in navigator
+) {
+
+    window.addEventListener(
+        "load",
+        async () => {
+
+            try {
+
+                const registration =
+                    await navigator
+                        .serviceWorker
+                        .register(
+                            "./service-worker.js"
+                        );
+
+
+                console.log(
+                    "Service Worker registriert:",
+                    registration.scope
+                );
+
+            }
+            catch (error) {
+
+                console.error(
+                    "Service Worker konnte nicht registriert werden:",
+                    error
+                );
+            }
+        }
+    );
+}
+
+
+// =======================================================
+// Changelog
+// =======================================================
+
+const changelogDialog =
+    document.getElementById(
+        "changelogDialog"
+    );
+
+
+// -------------------------------------------------------
+// Changelog öffnen
+// -------------------------------------------------------
+
+document
+    .getElementById(
+        "menuChangelog"
+    )
+    .addEventListener(
+        "click",
+        () => {
+
+            renderChangelog();
+
+            changelogDialog.showModal();
+        }
+    );
+
+
+// -------------------------------------------------------
+// Changelog schließen
+// -------------------------------------------------------
+
+document
+    .getElementById(
+        "closeChangelog"
+    )
+    .addEventListener(
+        "click",
+        () => {
+
+            changelogDialog.close();
+        }
+    );
+    
+    document
+    .getElementById(
+        "closeChangelogButton"
+    )
+    .addEventListener(
+        "click",
+        () => {
+
+            changelogDialog.close();
+        }
+    );

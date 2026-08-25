@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Amazon CSV Importer</title>
+    <link rel="manifest" href="manifest.json">
+
+    <meta name="theme-color" content="#18202a">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <!-- ==================================================
+         Kopfbereich
+         ================================================== -->
+
+    <header class="app-header">
+
+        <div class="app-titlebar">
+            <h1>Amazon CSV Importer</h1>
+
+            <p>
+                Amazon Transparency Dateien verarbeiten
+                und als Excel-Arbeitsmappe exportieren
+            </p>
+        </div>
+
+        <!-- ==============================================
+             Menü
+             ============================================== -->
+
+        <nav class="main-menu">
+
+    <div class="menu-inner">
+
+        <div class="menu-item">
+
+            <button
+                class="menu-button"
+                type="button"
+            >
+                Neu
+            </button>
+
+            <div class="dropdown-menu">
+                <button
+                    type="button"
+                    id="menuNew"
+                >
+                    Neuer Import
+                </button>
+            </div>
+
+        </div>
+
+
+        <div class="menu-item">
+
+            <button
+                class="menu-button"
+                type="button"
+            >
+                Daten
+            </button>
+
+            <div class="dropdown-menu">
+                <button
+                    type="button"
+                    id="menuProducts"
+                >
+                    Produktliste
+                </button>
+            </div>
+
+        </div>
+
+            <div class="menu-item">
+
+    <button
+        class="menu-button"
+        type="button"
+    >
+        System
+    </button>
+
+    <div class="dropdown-menu">
+
+        <button
+            type="button"
+            id="menuDiagnostics"
+        >
+            Diagnose-Center
+        </button>
+
+    </div>
+
+</div>
+
+        <div class="menu-item">
+
+            <button
+                class="menu-button"
+                type="button"
+            >
+                Hilfe
+            </button>
+
+            <div class="dropdown-menu">
+
+                <button
+                    type="button"
+                    id="menuHelp"
+                >
+                    Hilfe
+                </button>
+
+                <button
+                    type="button"
+                    id="menuChangelog"
+                >
+                    Was ist neu?
+                </button>
+
+                <button
+                    type="button"
+                    id="menuAbout"
+                >
+                    Über
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</nav>
+
+    </header>
+
+
+    <!-- ==================================================
+         Hauptbereich
+         ================================================== -->
+
+    <main>
+
+        <!-- ==============================================
+             Importbereich
+             ============================================== -->
+
+        <section class="card">
+
+            <h2>Amazon-Dateien importieren</h2>
+
+            <p class="card-description">
+                Wähle eine oder mehrere Amazon CSV-Dateien aus.
+            </p>
+
+            <div
+    class="import-area"
+    id="dropZone"
+>
+
+    <div class="drop-main">
+
+        <div class="drop-icon">
+            ↓
+        </div>
+
+        <div class="drop-text">
+
+            <p class="drop-title">
+                Amazon CSV-Dateien hier ablegen
+            </p>
+
+            <p class="drop-subtitle">
+                oder Dateien auswählen
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div
+        id="importCompletedInfo"
+        class="import-completed-info"
+    >
+    </div>
+
+
+    <input
+        type="file"
+        id="fileInput"
+        class="file-input-hidden"
+        multiple
+        accept=".csv"
+    >
+
+
+    <label
+        for="fileInput"
+        class="file-select-button"
+    >
+        Dateien auswählen
+    </label>
+
+</div>
+
+<div class="export-area">
+
+    <button
+        id="exportButton"
+        class="action-button"
+        type="button"
+        disabled
+    >
+        Excel exportieren
+    </button>
+
+</div>
+
+        </section>
+        
+
+        <!-- ==============================================
+             Erkannte Dateien
+             ============================================== -->
+        <div id="importStatusBar" class="import-status-bar"></div>
+        <section class="card result-section">
+            
+
+            <h2>Erkannte Dateien</h2>
+
+            <p class="card-description">
+                Kontrolle der aus den Dateinamen erkannten
+                Produktinformationen.
+            </p>
+
+            <div class="table-wrapper">
+
+                <table id="resultTable">
+
+                    <thead>
+                        <tr>
+                            <th>Dateiname</th>
+                            <th>SKU</th>
+                            <th>Amazon-EAN</th>
+                            <th>EAN</th>
+                            <th>ASIN</th>
+                            <th>T-Codes</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="resultBody">
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- ==============================================
+             Output-Vorschau
+             ============================================== -->
+
+        <section class="card result-section">
+
+            <h2>Output-Vorschau</h2>
+
+            <p class="card-description">
+                Vorschau der Daten, die in die Excel-Datei
+                geschrieben werden.
+            </p>
+
+            <div class="table-wrapper">
+
+                <table id="outputTable">
+
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Colour Variant</th>
+                            <th>Manufacturer Code</th>
+                            <th>EAN (Barcode)</th>
+                            <th>SKU</th>
+                            <th>Pack</th>
+                            <th>T-Code</th>
+                            <th>ASIN</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="outputBody">
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- ==============================================
+             Summary
+             ============================================== -->
+
+        <section class="card result-section" id="summarySection">
+
+            <h2>Summary</h2>
+
+            <p class="card-description">
+                Zusammenfassung und Plausibilitätsprüfung
+                des Imports.
+            </p>
+
+            <div id="summaryStats">
+            </div>
+
+            <h3 style="margin-top: 25px;">
+                Nicht zugeordnete / fehlerhafte Dateien
+            </h3>
+
+            <div class="table-wrapper">
+
+                <table id="summaryTable">
+
+                    <thead>
+                        <tr>
+                            <th>Dateiname</th>
+                            <th>SKU</th>
+                            <th>EAN</th>
+                            <th>Status</th>
+                            <th>Diagnose</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="summaryBody">
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- ==================================================
+         Footer
+         ================================================== -->
+
+    <footer class="app-footer">
+        <span id="footerAppInfo"></span>
+    </footer>
+
+    <dialog id="productsDialog" class="products-dialog">
+
+    <div class="dialog-header">
+        <h2>Produktliste</h2>
+
+        <button
+            type="button"
+            id="closeProducts"
+            class="dialog-close-button"
+            aria-label="Schließen"
+        >
+            ×
+        </button>
+    </div>
+
+    <dialog id="productEditDialog" class="product-edit-dialog">
+
+    <h2 id="productEditTitle">
+        Produkt bearbeiten
+    </h2>
+
+    <div class="product-form">
+
+        <label>
+            Product
+            <input type="text" id="editProductName">
+        </label>
+
+        <label>
+            Colour Variant
+            <input type="text" id="editColourVariant">
+        </label>
+
+        <label>
+            Manufacturer Code
+            <input type="text" id="editManufacturerCode">
+        </label>
+
+        <label>
+            EAN
+            <input type="text" id="editEan">
+        </label>
+
+        <label>
+            SKU
+            <input type="text" id="editSku">
+        </label>
+
+        <label>
+            Pack
+            <input type="text" id="editPack">
+        </label>
+
+        <label>
+            ASIN
+            <input type="text" id="editAsin">
+        </label>
+
+    </div>
+
+    <div class="product-form-actions">
+
+        <button
+            type="button"
+            id="productEditCancel"
+            class="product-action-button"
+        >
+            Abbrechen
+        </button>
+
+        <button
+            type="button"
+            id="productEditSave"
+            class="action-button"
+        >
+            Speichern
+        </button>
+
+    </div>
+
+</dialog>
+
+    <div class="product-toolbar">
+
+    <div class="product-toolbar-left">
+
+        <input
+            type="search"
+            id="productSearch"
+            class="product-search"
+            placeholder="Produkt suchen..."
+        >
+
+        <button
+            type="button"
+            id="productNew"
+            class="product-action-button"
+        >
+            Neu
+        </button>
+
+        <button
+            type="button"
+            id="productEdit"
+            class="product-action-button"
+            disabled
+        >
+            Bearbeiten
+        </button>
+
+        <button
+            type="button"
+            id="productDelete"
+            class="product-action-button danger"
+            disabled
+        >
+            Löschen
+        </button>
+        <button
+            type="button"
+            id="productImportJson"
+            class="product-action-button"
+            
+        >
+            JSON importieren
+        </button>
+
+        <button
+            type="button"
+            id="productExportJson"
+            class="product-action-button"
+        >
+            JSON exportieren
+        </button>
+
+        <input
+            type="file"
+            id="productJsonFileInput"
+            accept=".json,application/json"
+            hidden
+        >
+
+        <button
+            type="button"
+            id="productResetDefaults"
+            class="product-action-button"
+        >
+            Auf Standard zurücksetzen
+        </button>
+
+    </div>
+
+    <div id="productCount" class="product-count">
+        0 Produkte
+    </div>
+
+</div>
+
+    <div class="table-wrapper">
+
+        <table id="productTable">
+
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Colour Variant</th>
+                    <th>Manufacturer Code</th>
+                    <th>EAN</th>
+                    <th>SKU</th>
+                    <th>Pack</th>
+                    <th>ASIN</th>
+                </tr>
+            </thead>
+
+            <tbody id="productBody">
+            </tbody>
+
+        </table>
+
+    </div>
+
+</dialog>
+
+<dialog
+    id="diagnosticsDialog"
+    class="diagnostics-dialog"
+>
+
+    <div class="diagnostics-header">
+
+        <div>
+            <h2>System-Diagnose</h2>
+
+            <p>
+                Amazon CSV Importer – Systemstatus
+            </p>
+        </div>
+
+        <button
+            type="button"
+            id="closeDiagnostics"
+            class="dialog-close-button"
+            aria-label="Schließen"
+        >
+            ×
+        </button>
+
+    </div>
+
+
+    <div class="diagnostics-overall">
+
+        <div
+            id="diagnosticsOverallIcon"
+            class="diagnostics-overall-icon"
+        >
+            ●
+        </div>
+
+        <div>
+
+            <div
+                id="diagnosticsOverallTitle"
+                class="diagnostics-overall-title"
+            >
+                System bereit für Diagnose
+            </div>
+
+            <div
+                id="diagnosticsOverallText"
+                class="diagnostics-overall-text"
+            >
+                Starte den Systemtest.
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div
+        id="diagnosticsProgress"
+        class="diagnostics-progress"
+    >
+        <div
+            id="diagnosticsProgressBar"
+            class="diagnostics-progress-bar"
+        >
+        </div>
+    </div>
+
+
+    <div class="diagnostics-content">
+
+
+        <!-- =============================================
+             Anwendung
+             ============================================= -->
+
+        <section class="diagnostics-section">
+
+            <h3>Anwendung</h3>
+
+            <div id="diagnosticsApplication">
+            </div>
+
+        </section>
+
+
+        <!-- =============================================
+             Produktdaten
+             ============================================= -->
+
+        <section class="diagnostics-section">
+
+            <h3>Produktdaten</h3>
+
+            <div id="diagnosticsProducts">
+            </div>
+
+        </section>
+
+
+        <!-- =============================================
+             PWA
+             ============================================= -->
+
+        <section class="diagnostics-section">
+
+            <h3>PWA & Offline-System</h3>
+
+            <div id="diagnosticsPwa">
+            </div>
+
+        </section>
+
+
+        <!-- =============================================
+             Browser
+             ============================================= -->
+
+        <section class="diagnostics-section">
+
+            <h3>Browser & Plattform</h3>
+
+            <div id="diagnosticsBrowser">
+            </div>
+
+        </section>
+
+
+    </div>
+
+
+    <div class="diagnostics-footer">
+
+        <button
+            type="button"
+            id="runDiagnostics"
+            class="action-button"
+        >
+            Systemtest starten
+        </button>
+
+        <button
+            type="button"
+            id="closeDiagnosticsBottom"
+            class="product-action-button"
+        >
+            Schließen
+        </button>
+
+    </div>
+
+</dialog>
+
+    <dialog id="helpDialog">
+
+    <h2>Hilfe</h2>
+
+    <p>
+        Ziehe eine oder mehrere Amazon CSV-Dateien
+        in den Importbereich oder wähle sie über
+        „Dateien auswählen“ aus.
+    </p>
+
+    <p>
+        Das Programm prüft SKU und EAN,
+        ordnet die Produktdaten zu und erzeugt
+        anschließend eine Excel-Datei.
+    </p>
+
+
+    <div class="dialog-actions">
+        <div class="dialog-button-bar">
+            <button
+                type="button"
+                id="closeHelp"
+                class="action-button"
+            >
+                Schließen
+            </button>
+        </div>
+     </div>
+</dialog>
+
+
+<dialog id="aboutDialog">
+
+    <h2 id="aboutAppName"></h2>
+
+    <p id="aboutVersion"></p>
+
+    <p id="aboutBuildDate"></p>
+
+    <p id="aboutAuthor"></p>
+    <div class="dialog-actions">
+        <div class="dialog-button-bar">
+            <button
+                type="button"
+                id="closeAbout"
+                class="action-button"
+            >
+                Schließen
+            </button>
+        </div>
+    </div>
+
+</dialog>
+
+
+<dialog
+    id="changelogDialog"
+    class="changelog-dialog"
+>
+
+    <div class="dialog-header">
+
+        <h2>
+            Was ist neu?
+        </h2>
+
+        <button
+            type="button"
+            id="closeChangelog"
+            class="dialog-close-button"
+        >
+            ×
+        </button>
+
+    </div>
+
+
+    <div
+        id="changelogContent"
+        class="changelog-content"
+    >
+    </div>
+
+
+    <div class="dialog-actions">
+        <div class="dialog-button-bar">
+            <button
+                type="button"
+                id="closeChangelogButton"
+                class="action-button">
+                Schließen
+            </button>
+        </div>
+    </div>
+</dialog>
+
+    <!-- ============================================================================================
+         JavaScript  Ladereihenfolge muss beachtet werden und darf nicht geändert werden!!!
+         ================================================== ==========================================-->
+
+
+
+    <script src="data/products.js"></script>
+    <script src="lib/xlsx.full.min.js"></script>
+    <script src="version.js"></script>
+    <script src="app.js"></script>
+    <script src="diagnostics.js"></script>
+
+</body>
+</html>
