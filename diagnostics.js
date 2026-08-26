@@ -798,6 +798,11 @@ async function runSystemDiagnostics() {
         document.getElementById(
             "runDiagnostics"
         );
+    
+        const copyButton =
+            document.getElementById(
+                "copyDiagnostics"
+        );
 
     const overallIcon =
         document.getElementById(
@@ -820,6 +825,7 @@ async function runSystemDiagnostics() {
     // ---------------------------------------------------
 
     button.disabled = true;
+    copyButton.disabled = true;
 
     buildDiagnosticsInterface();
 
@@ -1456,6 +1462,7 @@ async function runSystemDiagnostics() {
 
 
     button.disabled = false;
+    copyButton.disabled = false;
 }
 
 // =======================================================
@@ -1524,8 +1531,117 @@ function openDiagnosticsCenter() {
     // ---------------------------------------------------
     // Diagnose-Center öffnen
     // ---------------------------------------------------
-
+    document
+        .getElementById(
+            "copyDiagnostics"
+        )
+    .disabled = true;
     dialog.showModal();
+}
+
+// =======================================================
+// Diagnosebericht in Zwischenablage kopieren
+// =======================================================
+
+async function copyDiagnosticsReport() {
+
+    const overallTitle =
+        document.getElementById(
+            "diagnosticsOverallTitle"
+        ).textContent.trim();
+
+
+    const overallText =
+        document.getElementById(
+            "diagnosticsOverallText"
+        ).textContent.trim();
+
+
+    const rows =
+        document.querySelectorAll(
+            ".diagnostics-row"
+        );
+
+
+    const lines = [
+
+        `${APP_INFO.name}`,
+        `Version: ${APP_INFO.version}`,
+        "",
+        overallTitle,
+        overallText,
+        "",
+        "Diagnoseergebnisse:",
+        ""
+
+    ];
+
+
+    for (const row of rows) {
+
+        const label =
+            row.querySelector(
+                ".diagnostics-label"
+            )?.textContent.trim();
+
+
+        const value =
+            row.querySelector(
+                ".diagnostics-value"
+            )?.textContent.trim();
+
+
+        const status =
+            row.querySelector(
+                ".diagnostics-status"
+            )?.textContent.trim();
+
+
+        if (
+            label &&
+            value &&
+            status
+        ) {
+
+            lines.push(
+                `${label}: ${value} [${status}]`
+            );
+
+        }
+
+    }
+
+
+    const report =
+        lines.join("\n");
+
+
+    try {
+
+        await navigator.clipboard.writeText(
+            report
+        );
+
+
+        alert(
+            "Der Diagnosebericht wurde in die Zwischenablage kopiert."
+        );
+
+    }
+    catch (error) {
+
+        console.error(
+            "Diagnosebericht konnte nicht kopiert werden:",
+            error
+        );
+
+
+        alert(
+            "Der Diagnosebericht konnte nicht in die Zwischenablage kopiert werden."
+        );
+
+    }
+
 }
 
 // =======================================================
@@ -1597,4 +1713,11 @@ document
 
             diagnosticsDialog.close();
         }
+    );
+
+    document
+    .getElementById("copyDiagnostics")
+    .addEventListener(
+        "click",
+        copyDiagnosticsReport
     );
