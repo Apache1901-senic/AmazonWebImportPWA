@@ -8,13 +8,24 @@ const APP_INFO = {
 
     name: "Amazon CSV Importer",
 
-    version: "1.0.0",
+    version: "1.0.1",
 
-    buildDate: "2026-08-18",
+    buildDate: "2026-08-26",
 
     author: ".::ST:HU::.",
 
     changelog: [
+         {
+            version: "1.0.1",
+            date: "2026-08-26",
+            changes: [
+                "Code-Cleanup und umfangreiche Funktionstests",
+                "Import- und Fehlerdiagnose überarbeitet",
+                "JSON-Sicherung und Wiederherstellung getestet",
+                "PWA- und Offline-Betrieb erfolgreich getestet",
+                "Veröffentlichung über GitHub Pages eingerichtet"
+            ]
+        },
 
         {
             version: "1.0.0",
