@@ -703,9 +703,234 @@
 
 </dialog>
 
-    <dialog id="helpDialog">
+    <dialog
+    id="helpDialog"
+    class="help-dialog"
+>
 
-    <h2>Hilfe</h2>
+    <div class="dialog-header">
+
+        <h2>
+            Hilfe
+        </h2>
+
+    </div>
+
+
+    <div class="help-content">
+        <section class="help-section">
+
+    <h3>
+        Typischer Arbeitsablauf
+    </h3>
+
+    <ol class="help-workflow">
+
+        <li>
+            <strong>CSV-Dateien auswählen</strong><br>
+            Amazon CSV-Dateien per Drag & Drop in den
+            Importbereich ziehen oder über
+            „Dateien auswählen“ öffnen.
+        </li>
+
+        <li>
+            <strong>Ergebnis prüfen</strong><br>
+            Kontrolliere die erkannten Dateien und achte
+            auf mögliche Warnungen oder Fehler.
+        </li>
+
+        <li>
+            <strong>Probleme kontrollieren</strong><br>
+            Falls Dateien nicht verarbeitet werden konnten,
+            findest du im Problembereich eine Beschreibung
+            der jeweiligen Ursache.
+        </li>
+
+        <li>
+            <strong>Excel-Datei erstellen</strong><br>
+            Wenn alles korrekt ist, über
+            „Excel exportieren“ die fertige
+            Arbeitsmappe erzeugen.
+        </li>
+
+    </ol>
+
+</section>
+
+        <section class="help-section">
+
+            <h3>
+                Amazon CSV-Dateien importieren
+            </h3>
+
+            <p>
+                Das Programm liest SKU und Amazon-EAN aus dem
+                Dateinamen, ermittelt daraus die normale EAN
+                und ordnet die Datei den passenden
+                Produktstammdaten zu.
+            </p>
+
+            <p>
+                Anschließend werden die enthaltenen T-Codes
+                verarbeitet und für den Excel-Export vorbereitet.
+            </p>
+
+        </section>
+
+
+        <section class="help-section">
+
+            <h3>
+                Erkannte Dateien
+            </h3>
+
+            <p>
+                In diesem Bereich siehst du, welche SKU,
+                Amazon-EAN, EAN und ASIN aus den Dateien
+                erkannt wurden.
+            </p>
+
+            <p>
+                Zusätzlich zeigt der Status, ob die Datei
+                eindeutig einem Produkt zugeordnet werden
+                konnte oder ob ein Problem vorliegt.
+            </p>
+
+        </section>
+
+
+        <section class="help-section">
+
+            <h3>
+                Fehler und Konflikte
+            </h3>
+
+            <p>
+                Bei Problemen wird eine verständliche
+                Diagnose angezeigt.
+            </p>
+
+            <ul>
+                <li>
+                    <strong>SKU/EAN-Konflikt:</strong>
+                    SKU und EAN gehören laut Stammdaten
+                    zu unterschiedlichen Produkten.
+                </li>
+
+                <li>
+                    <strong>Nicht gefunden:</strong>
+                    SKU und/oder EAN konnten keinem
+                    Produkt zugeordnet werden.
+                </li>
+
+                <li>
+                    <strong>Keine T-Codes:</strong>
+                    Die CSV-Datei enthält keine
+                    verwertbaren T-Codes.
+                </li>
+
+                <li>
+                    <strong>Dateiname nicht erkannt:</strong>
+                    Der Dateiname entspricht nicht dem
+                    erwarteten Amazon-Dateiformat.
+                </li>
+            </ul>
+
+        </section>
+
+
+        <section class="help-section">
+
+            <h3>
+                Excel exportieren
+            </h3>
+
+            <p>
+                Nach einem erfolgreichen Import kann über
+                „Excel exportieren“ eine XLSX-Datei erzeugt
+                werden.
+            </p>
+
+            <p>
+                Die Arbeitsmappe enthält das Blatt
+                <strong>Output</strong> mit den erzeugten
+                Daten sowie das Blatt
+                <strong>Summary</strong> mit Statistik,
+                Problemen und Diagnosen.
+            </p>
+
+        </section>
+
+
+        <section class="help-section">
+
+            <h3>
+                Produktliste
+            </h3>
+
+            <p>
+                Unter „Daten → Produktliste“ können
+                Produktstammdaten gesucht, neu angelegt,
+                bearbeitet und gelöscht werden.
+            </p>
+
+            <p>
+                ASIN, SKU und EAN werden dabei geprüft.
+                Doppelte Werte werden nicht zugelassen.
+            </p>
+
+        </section>
+
+
+        <section class="help-section">
+
+            <h3>
+                Produktdaten sichern
+            </h3>
+
+            <p>
+                Die Produktliste kann als JSON-Datei
+                exportiert und später wieder importiert
+                werden.
+            </p>
+
+            <p>
+                Der JSON-Import ersetzt die aktuell
+                gespeicherte Produktliste vollständig.
+                Vor dem Import wird deshalb eine
+                Sicherheitsabfrage angezeigt.
+            </p>
+
+        </section>
+
+
+        <section class="help-section">
+
+            <h3>
+                Diagnose-Center
+            </h3>
+
+            <p>
+                Unter „System → Diagnose-Center“ kann
+                eine Selbstdiagnose gestartet werden.
+            </p>
+
+            <p>
+                Dabei werden unter anderem Produktdaten,
+                Excel-Engine, localStorage, Service Worker,
+                Offline-Cache, Browser und PWA-Umgebung
+                geprüft.
+            </p>
+
+        </section>
+
+
+       <section class="help-section">
+        
+
+    <h3>
+        Amazon CSV-Dateien importieren
+    </h3>
 
     <p>
         Ziehe eine oder mehrere Amazon CSV-Dateien
@@ -714,23 +939,283 @@
     </p>
 
     <p>
-        Das Programm prüft SKU und EAN,
-        ordnet die Produktdaten zu und erzeugt
-        anschließend eine Excel-Datei.
+        Das Programm liest SKU und Amazon-EAN aus dem
+        Dateinamen, ermittelt daraus die normale EAN
+        und ordnet die Datei den passenden
+        Produktstammdaten zu.
     </p>
 
+    <p>
+        Anschließend werden die enthaltenen T-Codes
+        verarbeitet und für den Excel-Export vorbereitet.
+    </p>
 
-    <div class="dialog-actions">
-        <div class="dialog-button-bar">
-            <button
-                type="button"
-                id="closeHelp"
-                class="action-button"
-            >
-                Schließen
-            </button>
-        </div>
-     </div>
+</section>
+
+
+<section class="help-section">
+
+    <h3>
+        Erkannte Dateien
+    </h3>
+
+    <p>
+        In diesem Bereich siehst du für jede erkannte
+        CSV-Datei den Dateinamen, SKU, Amazon-EAN,
+        normale EAN, ASIN, Anzahl der T-Codes und
+        den aktuellen Status.
+    </p>
+
+    <p>
+        Dateien, die eindeutig einem Produkt zugeordnet
+        werden konnten, erhalten den Status „OK“.
+        Problematische Dateien werden farblich markiert
+        und nicht in den eigentlichen Output übernommen.
+    </p>
+
+</section>
+
+
+<section class="help-section">
+
+    <h3>
+        Fehler und Konflikte
+    </h3>
+
+    <p>
+        Problematische Dateien werden nicht einfach
+        übersprungen. Das Programm erzeugt eine
+        verständliche Diagnose mit Hinweisen zur Ursache.
+    </p>
+
+    <ul>
+
+        <li>
+            <strong>SKU/EAN-Konflikt:</strong>
+            SKU und EAN sind beide bekannt, gehören laut
+            Produktstammdaten aber zu unterschiedlichen
+            Produkten. Die Datei wird nicht importiert.
+        </li>
+
+        <li>
+            <strong>Nicht gefunden:</strong>
+            Die erkannte SKU und/oder EAN konnte keinem
+            Produkt in den Stammdaten zugeordnet werden.
+        </li>
+
+        <li>
+            <strong>Keine T-Codes:</strong>
+            Die CSV-Datei enthält keine verwertbaren
+            T-Codes und wird deshalb nicht importiert.
+        </li>
+
+        <li>
+            <strong>Dateiname nicht erkannt:</strong>
+            SKU und Amazon-EAN konnten aus dem Dateinamen
+            nicht zuverlässig erkannt werden. Bitte prüfe,
+            ob der Dateiname dem üblichen Amazon-Schema
+            entspricht.
+        </li>
+
+    </ul>
+
+</section>
+
+
+    <section class="help-section">
+
+        <h3>
+            Output und Count
+        </h3>
+
+        <p>
+            Erfolgreich zugeordnete Dateien werden nach ASIN
+            verarbeitet und in der Output-Vorschau angezeigt.
+        </p>
+
+        <p>
+            Für jeden T-Code wird ein laufender Count erzeugt,
+            zum Beispiel „0001-0025“. Beim Wechsel zu einer
+            anderen ASIN wird zusätzlich eine END-Zeile mit
+            der Gesamtanzahl erzeugt.
+        </p>
+
+    </section>
+
+
+    <section class="help-section">
+
+        <h3>
+            Excel exportieren
+        </h3>
+
+        <p>
+            Nach einem erfolgreichen Import kann über
+            „Excel exportieren“ eine XLSX-Datei erzeugt werden.
+        </p>
+
+        <p>
+            Die Arbeitsmappe enthält das Blatt
+            <strong>Output</strong> mit den erzeugten
+            Produkt- und T-Code-Daten sowie das Blatt
+            <strong>Summary</strong> mit Importstatistik,
+            Problemdateien und ausführlichen Diagnosen.
+        </p>
+
+        <p>
+            EAN und Count werden im Excel-Export als Text
+            behandelt, damit ihre Darstellung unverändert
+            erhalten bleibt.
+        </p>
+
+    </section>
+
+
+    <section class="help-section">
+
+        <h3>
+            Produktliste
+        </h3>
+
+        <p>
+            Unter „Daten → Produktliste“ können die
+            Produktstammdaten durchsucht, neu angelegt,
+            bearbeitet und gelöscht werden.
+        </p>
+
+        <p>
+            Beim Speichern werden Pflichtfelder,
+            EAN-13 einschließlich Prüfziffer, SKU und ASIN
+            geprüft. Doppelte ASIN-, SKU- oder EAN-Werte
+            werden nicht zugelassen.
+        </p>
+
+    </section>
+
+
+    <section class="help-section">
+
+        <h3>
+            Produktdaten sichern und wiederherstellen
+        </h3>
+
+        <p>
+            Die aktuelle Produktliste kann als JSON-Datei
+            exportiert und später wieder importiert werden.
+        </p>
+
+        <p>
+            Beim JSON-Import wird die vorhandene Produktliste
+            vollständig ersetzt. Vorher erfolgt eine
+            Sicherheitsabfrage und die importierten Daten
+            werden auf gültige Struktur und Dubletten geprüft.
+        </p>
+
+        <p>
+            Über „Auf Standard zurücksetzen“ können jederzeit
+            die mit der Anwendung ausgelieferten
+            Standard-Produktdaten wiederhergestellt werden.
+        </p>
+
+    </section>
+
+
+    <section class="help-section">
+
+        <h3>
+            Speicherung der Produktdaten
+        </h3>
+
+        <p>
+            Änderungen an der Produktliste werden derzeit
+            lokal im Browser gespeichert.
+        </p>
+
+        <p>
+            Browser-Version und installierte PWA verwenden
+            auf demselben Computer dieselben gespeicherten
+            Produktdaten. Auf einem anderen Computer steht
+            dagegen ein eigener Datenbestand zur Verfügung.
+        </p>
+
+        <p>
+            Für die Übertragung zwischen Computern kann die
+            JSON Export- und Importfunktion verwendet werden.
+        </p>
+
+    </section>
+
+
+    <section class="help-section">
+
+        <h3>
+            Diagnose-Center
+        </h3>
+
+        <p>
+            Unter „System → Diagnose-Center“ kann eine
+            Selbstdiagnose der Anwendung gestartet werden.
+        </p>
+
+        <p>
+            Dabei werden unter anderem Programmversion,
+            Excel-Engine, Dateizugriff, Drag & Drop,
+            Produktdaten, Datenintegrität, Dubletten,
+            localStorage, Manifest, Service Worker,
+            Offline-Cache, Browser und Betriebssystem geprüft.
+        </p>
+
+        <p>
+            Warnungen und Fehler werden direkt im
+            Diagnose-Center angezeigt.
+        </p>
+
+    </section>
+
+
+    <section class="help-section">
+
+        <h3>
+            PWA und Offline-Betrieb
+        </h3>
+
+        <p>
+            Die Anwendung kann in unterstützten Browsern
+            als PWA installiert und anschließend wie eine
+            eigenständige Anwendung gestartet werden.
+        </p>
+
+        <p>
+            Nach einem erfolgreichen Online-Start werden die
+            benötigten Programmdateien im Offline-Cache
+            gespeichert. Dadurch kann die Anwendung auch
+            ohne Internetverbindung gestartet und verwendet
+            werden.
+        </p>
+
+        <p>
+            Sobald der Server wieder erreichbar ist,
+            aktualisiert die Anwendung ihren Cache wieder
+            mit den verfügbaren Programmdateien.
+        </p>
+
+    </section>
+
+    </div>
+
+
+    <div class="dialog-button-bar">
+
+        <button
+            type="button"
+            id="closeHelp"
+            class="action-button"
+        >
+            Schließen
+        </button>
+
+    </div>
+
 </dialog>
 
 
