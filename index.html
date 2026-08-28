@@ -39,113 +39,111 @@
 
         <nav class="main-menu">
 
-    <div class="menu-inner">
+            <div class="menu-inner">
 
-        <div class="menu-item">
+                <div class="menu-item">
 
-            <button
-                class="menu-button"
-                type="button"
-            >
-                Neu
-            </button>
+                    <button
+                        class="menu-button"
+                        type="button"
+                    >
+                        Neu
+                    </button>
 
-            <div class="dropdown-menu">
-                <button
-                    type="button"
-                    id="menuNew"
-                >
-                    Neuer Import
-                </button>
-            </div>
+                    <div class="dropdown-menu">
+                        <button
+                            type="button"
+                            id="menuNew"
+                        >
+                            Neuer Import
+                        </button>
+                    </div>
 
-        </div>
+                </div>
 
 
-        <div class="menu-item">
+                <div class="menu-item">
 
-            <button
-                class="menu-button"
-                type="button"
-            >
-                Daten
-            </button>
+                    <button
+                        class="menu-button"
+                        type="button"
+                    >
+                        Daten
+                    </button>
 
-            <div class="dropdown-menu">
-                <button
-                    type="button"
-                    id="menuProducts"
-                >
-                    Produktliste
-                </button>
-            </div>
+                    <div class="dropdown-menu">
+                        <button
+                            type="button"
+                            id="menuProducts"
+                        >
+                            Produktliste
+                        </button>
+                    </div>
 
-        </div>
+                </div>
 
-            <div class="menu-item">
-
-    <button
-        class="menu-button"
-        type="button"
-    >
-        System
-    </button>
-
-    <div class="dropdown-menu">
-
-        <button
-            type="button"
-            id="menuDiagnostics"
-        >
-            Diagnose-Center
-        </button>
-
-    </div>
-
-</div>
-
-        <div class="menu-item">
+                    <div class="menu-item">
 
             <button
                 class="menu-button"
                 type="button"
             >
-                Hilfe
+                System
             </button>
 
             <div class="dropdown-menu">
 
                 <button
                     type="button"
-                    id="menuHelp"
+                    id="menuDiagnostics"
                 >
-                    Hilfe
-                </button>
-
-                <button
-                    type="button"
-                    id="menuChangelog"
-                >
-                    Was ist neu?
-                </button>
-
-                <button
-                    type="button"
-                    id="menuAbout"
-                >
-                    Über
+                    Diagnose-Center
                 </button>
 
             </div>
 
         </div>
 
-    </div>
+                <div class="menu-item">
 
-</nav>
+                    <button
+                        class="menu-button"
+                        type="button"
+                    >
+                        Hilfe
+                    </button>
 
-    </header>
+                    <div class="dropdown-menu">
 
+                        <button
+                            type="button"
+                            id="menuHelp"
+                        >
+                            Hilfe
+                        </button>
+
+                        <button
+                            type="button"
+                            id="menuChangelog"
+                        >
+                            Was ist neu?
+                        </button>
+
+                        <button
+                            type="button"
+                            id="menuAbout"
+                        >
+                            Über
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </nav>
+</header>
 
     <!-- ==================================================
          Hauptbereich
@@ -545,6 +543,96 @@
             </tbody>
 
         </table>
+
+    </div>
+
+</dialog>
+
+<dialog id="productConflictDialog" class="product-conflict-dialog">
+
+    <div class="dialog-header">
+
+        <h2>
+            Unterschiedliche Produktdaten
+        </h2>
+
+        <button
+            type="button"
+            id="closeProductConflict"
+            class="dialog-close-button"
+            aria-label="Schließen"
+        >
+            ×
+        </button>
+
+    </div>
+
+
+    <div class="product-conflict-content">
+
+        <div class="product-conflict-warning">
+            Die Produktdaten wurden auf diesem Rechner
+            und im zentralen Datenbestand geändert.
+        </div>
+
+
+        <div class="product-conflict-product">
+
+            <span class="product-conflict-label">
+                ASIN
+            </span>
+
+            <strong id="productConflictAsin">
+                -
+            </strong>
+
+        </div>
+
+
+        <div
+            id="productConflictDifferences"
+            class="product-conflict-differences"
+        >
+        </div>
+
+
+        <div class="product-conflict-hint">
+
+            Bitte entscheiden Sie, welcher Datenstand
+            verwendet werden soll.
+
+        </div>
+
+    </div>
+
+
+    <div class="product-conflict-actions">
+
+        <button
+            type="button"
+            id="productConflictCancel"
+            class="product-action-button"
+        >
+            Abbrechen
+        </button>
+
+
+        <button
+            type="button"
+            id="productConflictUseCloud"
+            class="product-action-button"
+        >
+            Zentralen Stand verwenden
+        </button>
+
+
+        <button
+            type="button"
+            id="productConflictUseLocal"
+            class="action-button"
+        >
+            Lokale Änderungen übernehmen
+        </button>
 
     </div>
 
@@ -1293,17 +1381,273 @@
     </div>
 </dialog>
 
-    <!-- ============================================================================================
-         JavaScript  Ladereihenfolge muss beachtet werden und darf nicht geändert werden!!!
-         ================================================== ==========================================-->
+<!-- ==============================================
+     Systemstatus / Telemetrie
+     ============================================== -->
+
+<div class="system-status">
+
+    <div class="system-status-inner">
+
+        <div class="status-item">
+            <span class="status-light online"></span>
+
+            <div class="status-text">
+                <span class="status-label">
+                    SYSTEM
+                </span>
+
+                <span class="status-value">
+                    ONLINE
+                </span>
+            </div>
+        </div>
 
 
+        <div class="status-divider"></div>
 
-    <script src="data/products.js"></script>
-    <script src="lib/xlsx.full.min.js"></script>
-    <script src="version.js"></script>
-    <script src="app.js"></script>
-    <script src="diagnostics.js"></script>
+
+        <div class="status-item">
+            <span class="status-light online"></span>
+
+            <div class="status-text">
+                <span class="status-label">
+                    FIREBASE
+                </span>
+
+                <span class="status-value">
+                    VERBUNDEN
+                </span>
+            </div>
+        </div>
+
+
+        <div class="status-divider"></div>
+
+
+        <div class="status-item">
+            <span class="status-light online"></span>
+
+            <div class="status-text">
+                <span class="status-label">
+                    DATEN
+                </span>
+
+                <span class="status-value">
+                    SYNCHRON
+                </span>
+            </div>
+        </div>
+
+
+        <div class="status-divider"></div>
+
+
+        <div class="status-item">
+            <div class="status-text">
+                <span class="status-label">
+                    PRODUKTE
+                </span>
+
+                <span class="status-value">
+                    9
+                </span>
+            </div>
+        </div>
+
+
+        <div class="status-divider"></div>
+
+
+        <div class="status-item">
+            <div class="status-text">
+                <span class="status-label">
+                    DATENVERSION
+                </span>
+
+                <span class="status-value">
+                    10
+                </span>
+            </div>
+        </div>
+
+
+        <div class="status-spacer"></div>
+
+
+        <div class="status-item status-offline-ready">
+            <span class="status-light ready"></span>
+
+            <div class="status-text">
+                <span class="status-label">
+                    AUSFALLSICHERHEIT
+                </span>
+
+                <span class="status-value">
+                    OFFLINE BEREIT
+                </span>
+            </div>
+        </div>
+        <button
+            type="button"
+            id="scrollToTop"
+            class="status-scroll-top"
+            title="Nach oben"
+            aria-label="Nach oben scrollen"
+        >
+            ↑
+        </button>
+
+    </div>
+
+</div>
+
+
+<!-- ===================================================
+     JavaScript-Dateien
+=================================================== -->
+
+<script src="data/products.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="version.js"></script>
+<script src="app.js"></script>
+<script src="diagnostics.js"></script>
+
+
+<script>
+        // ===================================================
+        // Firebase nur bei verfügbarer Internetverbindung laden
+        // ===================================================
+
+        let firebaseLoading = false;
+        let firebaseLoaded = false;
+
+
+        async function loadFirebaseIfOnline() {
+
+            // ---------------------------------------------------
+            // Keine Internetverbindung
+            // ---------------------------------------------------
+
+            if (!navigator.onLine) {
+
+                console.log(
+                    "Offline-Modus: Firebase wird nicht geladen."
+                );
+
+                return;
+            }
+
+
+            // ---------------------------------------------------
+            // Firebase wird bereits geladen oder wurde geladen
+            // ---------------------------------------------------
+
+            if (
+                firebaseLoading ||
+                firebaseLoaded
+            ) {
+
+                return;
+            }
+
+
+            firebaseLoading = true;
+
+
+            try {
+
+                // ---------------------------------------------------
+                // Firebase-Modul dynamisch laden
+                // ---------------------------------------------------
+
+                await import(
+                    "./firebase.js"
+                );
+
+
+                firebaseLoaded = true;
+
+
+                console.log(
+                    "Firebase-Modul wurde geladen."
+                );
+
+            }
+            catch (error) {
+
+                console.warn(
+                    "Firebase konnte nicht geladen werden. "
+                    + "Die lokalen Produktdaten werden weiter verwendet.",
+                    error
+                );
+
+            }
+            finally {
+
+                firebaseLoading = false;
+            }
+        }
+
+
+        // ===================================================
+        // Firebase beim Programmstart laden
+        // ===================================================
+
+        loadFirebaseIfOnline();
+
+
+        // ===================================================
+        // Auf wiederhergestellte Internetverbindung reagieren
+        // ===================================================
+
+        window.addEventListener(
+            "online",
+            async () => {
+
+                console.log(
+                    "Internetverbindung wieder verfügbar."
+                );
+
+
+                // ---------------------------------------------------
+                // Merken, ob Firebase bereits vor dem Reconnect
+                // geladen war
+                // ---------------------------------------------------
+
+                const firebaseWasAlreadyLoaded =
+                    firebaseLoaded;
+
+
+                // ---------------------------------------------------
+                // Firebase bei Bedarf laden
+                // ---------------------------------------------------
+
+                await loadFirebaseIfOnline();
+
+
+                // ---------------------------------------------------
+                // War Firebase bereits geladen, wird das Modul nicht
+                // erneut importiert. Deshalb müssen wir den sicheren
+                // Produktabgleich jetzt selbst anstoßen.
+                //
+                // Bei einem erstmaligen Firebase-Import übernimmt
+                // dagegen onAuthStateChanged() in firebase.js.
+                // Dadurch vermeiden wir einen doppelten Sync.
+                // ---------------------------------------------------
+
+                if (
+                    firebaseWasAlreadyLoaded &&
+                    typeof window.reconcilePendingProductChanges === "function"
+                ) {
+
+                    await window
+                        .reconcilePendingProductChanges();
+                }
+            }
+        );
+    </script>
+
 
 </body>
 </html>

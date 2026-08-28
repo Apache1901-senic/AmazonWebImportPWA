@@ -11,6 +11,15 @@ const COUNT_WIDTH = 4;
 const PRODUCT_STORAGE_KEY =
     "amazonCsvImporter_products";
 
+const PRODUCT_VERSION_STORAGE_KEY =
+    "amazonCsvImporter_products_version";
+
+const PRODUCT_PENDING_STORAGE_KEY =
+    "amazonCsvImporter_products_pending";
+
+const PRODUCT_BASELINE_STORAGE_KEY =
+    "amazonCsvImporter_products_baseline";
+
 
 let selectedProductIndex = null;
 let editProductIndex = null;
@@ -32,6 +41,423 @@ function saveProductsToStorage() {
         JSON.stringify(products)
     );
 }
+
+// =======================================================
+// Lokale Produktdaten-Version lesen
+// =======================================================
+
+function getLocalProductDataVersion() {
+
+    const storedVersion =
+        localStorage.getItem(
+            PRODUCT_VERSION_STORAGE_KEY
+        );
+
+
+    if (storedVersion === null) {
+
+        return 0;
+    }
+
+
+    const version =
+        Number(storedVersion);
+
+
+    if (!Number.isFinite(version)) {
+
+        return 0;
+    }
+
+
+    return version;
+}
+
+
+// =======================================================
+// Lokale Produktdaten-Version speichern
+// =======================================================
+
+function setLocalProductDataVersion(
+    version
+) {
+
+    localStorage.setItem(
+        PRODUCT_VERSION_STORAGE_KEY,
+        String(version)
+    );
+}
+
+
+
+// =======================================================
+// Prüfen, ob lokale Produktänderungen ausstehen
+// =======================================================
+
+function hasPendingProductChanges() {
+
+    return (
+        localStorage.getItem(
+            PRODUCT_PENDING_STORAGE_KEY
+        ) === "true"
+    );
+}
+
+window.hasPendingProductChanges =
+    hasPendingProductChanges;
+// =======================================================
+// Lokale Produktänderungen als ausstehend markieren
+// =======================================================
+
+function markProductChangesPending() {
+
+    localStorage.setItem(
+        PRODUCT_PENDING_STORAGE_KEY,
+        "true"
+    );
+
+
+    console.log(
+        "Lokale Produktänderungen warten auf Synchronisation."
+    );
+}
+
+
+// =======================================================
+// Pending-Markierung löschen
+// =======================================================
+
+function clearPendingProductChanges() {
+
+    localStorage.removeItem(
+        PRODUCT_PENDING_STORAGE_KEY
+    );
+
+
+    console.log(
+        "Lokale Produktänderungen sind vollständig synchronisiert."
+    );
+}
+
+    
+
+
+    // =======================================================
+    // Produktdaten bei Bedarf aus Firestore synchronisieren
+    // =======================================================
+
+    async function syncProductsFromFirestoreIfNeeded() {
+        // ---------------------------------------------------
+        // Lokale Offline-Änderungen haben Vorrang
+        // ---------------------------------------------------
+    const localChangesExist =
+        hasPendingProductChanges() ||
+        hasLocalProductChangesComparedToBaseline();
+
+
+    if (
+        localChangesExist
+    ) {
+
+        // Pending-Markierung gegebenenfalls selbst reparieren
+        if (
+            !hasPendingProductChanges()
+        ) {
+
+            markProductChangesPending();
+
+            console.log(
+                "Lokale Änderungen wurden anhand der Baseline erkannt. "
+                + "Pending-Markierung wurde wiederhergestellt."
+            );
+        }
+
+
+        console.log(
+            "Lokale Änderungen warten auf Synchronisation. "
+            + "Cloud-Download wird zunächst übersprungen."
+        );
+
+
+        return false;
+    }
+    // ---------------------------------------------------
+    // Prüfen, ob Firebase-Funktionen verfügbar sind
+    // ---------------------------------------------------
+
+    if (
+        typeof window.getProductDataVersion !== "function" ||
+        typeof window.loadProductsFromFirestore !== "function"
+    ) {
+
+        console.log(
+            "Firebase-Synchronisation noch nicht verfügbar."
+        );
+
+        return false;
+    }
+
+
+    try {
+
+        // ---------------------------------------------------
+        // Versionsstände lesen
+        // ---------------------------------------------------
+
+        const localVersion =
+            getLocalProductDataVersion();
+
+
+        const cloudVersion =
+            await window.getProductDataVersion();
+
+
+        console.log(
+            "Produktdaten-Versionen:",
+            {
+                lokal: localVersion,
+                firebase: cloudVersion
+            }
+        );
+
+
+        // ---------------------------------------------------
+        // Keine zentrale Version vorhanden
+        // ---------------------------------------------------
+
+        if (
+            cloudVersion === null ||
+            cloudVersion === undefined
+        ) {
+
+            console.log(
+                "Keine zentrale Produktdaten-Version vorhanden."
+            );
+
+            return false;
+        }
+
+
+        // ---------------------------------------------------
+        // Lokaler Stand ist bereits aktuell
+        // ---------------------------------------------------
+
+        if (
+            cloudVersion <= localVersion
+        ) {
+
+            console.log(
+                "Lokale Produktdaten sind bereits aktuell."
+            );
+
+            return true;
+        }
+
+
+        // ---------------------------------------------------
+        // Neueren Datenstand aus Firestore laden
+        // ---------------------------------------------------
+
+        console.log(
+            "Neuere Produktdaten in Firebase gefunden."
+        );
+
+
+        const cloudProducts =
+            await window.loadProductsFromFirestore();
+
+
+        if (
+            !Array.isArray(cloudProducts) ||
+            cloudProducts.length === 0
+        ) {
+
+            console.error(
+                "Zentrale Produktliste ist leer oder konnte nicht geladen werden."
+            );
+
+            return false;
+        }
+
+
+        // ---------------------------------------------------
+        // Daten vor Übernahme prüfen
+        // ---------------------------------------------------
+
+        const validation =
+            validateProductList(
+                cloudProducts
+            );
+
+
+        if (!validation.valid) {
+
+            console.error(
+                "Zentrale Produktliste ist ungültig:",
+                validation.message
+            );
+
+            return false;
+        }
+
+
+        const duplicates =
+            findDuplicateProductFields(
+                cloudProducts
+            );
+
+
+        if (
+            duplicates.length > 0
+        ) {
+
+            console.error(
+                "Zentrale Produktliste enthält Dubletten:",
+                duplicates
+            );
+
+            return false;
+        }
+
+
+        // ---------------------------------------------------
+        // Zentrale Produktdaten lokal übernehmen
+        // ---------------------------------------------------
+
+        products =
+            structuredClone(
+                cloudProducts
+            );
+
+
+        saveProductsToStorage();
+
+        setLocalProductDataVersion(
+            cloudVersion
+        );
+
+
+        // ---------------------------------------------------
+        // Produktliste aktualisieren, falls geöffnet
+        // ---------------------------------------------------
+
+        const productsDialog =
+            document.getElementById(
+                "productsDialog"
+            );
+
+
+        if (
+            productsDialog &&
+            productsDialog.open
+        ) {
+
+            renderProductList();
+        }
+
+
+        console.log(
+            `${products.length} Produktdaten wurden aus Firebase übernommen.`
+        );
+
+        console.log(
+            `Lokale Produktdaten-Version wurde auf ${cloudVersion} aktualisiert.`
+        );
+
+
+        return true;
+
+    }
+    catch (error) {
+
+        // ---------------------------------------------------
+        // Ganz wichtig:
+        // Firebase-Fehler dürfen die lokale App nicht stoppen
+        // ---------------------------------------------------
+
+        console.warn(
+            "Firebase-Synchronisation nicht möglich. "
+            + "Die lokalen Produktdaten werden weiter verwendet.",
+            error
+        );
+
+
+        return false;
+    }
+}
+
+// =======================================================
+// Letzten synchronisierten Produktstand speichern
+// =======================================================
+
+function saveProductBaseline(
+    productList
+) {
+
+    if (
+        !Array.isArray(productList)
+    ) {
+        return;
+    }
+
+
+    localStorage.setItem(
+        PRODUCT_BASELINE_STORAGE_KEY,
+        JSON.stringify(productList)
+    );
+
+
+    console.log(
+        "Synchronisierter Produktstand wurde lokal gespeichert."
+    );
+}
+
+
+// =======================================================
+// Letzten synchronisierten Produktstand laden
+// =======================================================
+
+function loadProductBaseline() {
+
+    const storedBaseline =
+        localStorage.getItem(
+            PRODUCT_BASELINE_STORAGE_KEY
+        );
+
+
+    if (!storedBaseline) {
+        return null;
+    }
+
+
+    try {
+
+        const baseline =
+            JSON.parse(
+                storedBaseline
+            );
+
+
+        return Array.isArray(baseline)
+            ? baseline
+            : null;
+
+    }
+    catch (error) {
+
+        console.error(
+            "Synchronisierter Produktstand konnte nicht gelesen werden:",
+            error
+        );
+
+
+        return null;
+    }
+}
+
+// Für Test und spätere Verwendung bereitstellen
+window.syncProductsFromFirestoreIfNeeded =
+    syncProductsFromFirestoreIfNeeded;
 
 
 // =======================================================
@@ -381,6 +807,948 @@ function resolveProduct(sku, ean) {
     };
 }
 
+
+// =======================================================
+// Produktstände vergleichen
+// =======================================================
+
+function compareProductStates(
+    baselineProducts,
+    localProducts,
+    cloudProducts
+) {
+
+    const result = {
+        unchanged: [],
+        localChanged: [],
+        cloudChanged: [],
+        conflicts: []
+    };
+
+
+    // ---------------------------------------------------
+    // Hilfsfunktion:
+    // Produktlisten nach ASIN abbilden
+    // ---------------------------------------------------
+
+    function createProductMap(
+        productList
+    ) {
+
+        const map = new Map();
+
+
+        if (
+            !Array.isArray(productList)
+        ) {
+            return map;
+        }
+
+
+        for (
+            const product of productList
+        ) {
+
+            if (
+                product &&
+                product.asin
+            ) {
+
+                map.set(
+                    product.asin,
+                    product
+                );
+            }
+        }
+
+
+        return map;
+    }
+
+
+    // ---------------------------------------------------
+    // Hilfsfunktion:
+    // Zwei Produkte vollständig vergleichen
+    // ---------------------------------------------------
+
+    function productsAreEqual(
+        productA,
+        productB
+    ) {
+
+        if (
+            !productA ||
+            !productB
+        ) {
+            return false;
+        }
+
+
+        return (
+            productA.productName === productB.productName &&
+            productA.colourVariant === productB.colourVariant &&
+            productA.manufacturerCode === productB.manufacturerCode &&
+            productA.ean === productB.ean &&
+            productA.sku === productB.sku &&
+            productA.pack === productB.pack &&
+            productA.asin === productB.asin
+        );
+    }
+
+
+    const baselineMap =
+        createProductMap(
+            baselineProducts
+        );
+
+
+    const localMap =
+        createProductMap(
+            localProducts
+        );
+
+
+    const cloudMap =
+        createProductMap(
+            cloudProducts
+        );
+
+
+    // ---------------------------------------------------
+    // Alle bekannten ASINs sammeln
+    // ---------------------------------------------------
+
+    const allAsins =
+        new Set([
+            ...baselineMap.keys(),
+            ...localMap.keys(),
+            ...cloudMap.keys()
+        ]);
+
+
+    // ---------------------------------------------------
+    // Jeden Datensatz vergleichen
+    // ---------------------------------------------------
+
+    for (
+        const asin of allAsins
+    ) {
+
+        const baselineProduct =
+            baselineMap.get(
+                asin
+            );
+
+
+        const localProduct =
+            localMap.get(
+                asin
+            );
+
+
+        const cloudProduct =
+            cloudMap.get(
+                asin
+            );
+
+
+        const localWasChanged =
+            !productsAreEqual(
+                baselineProduct,
+                localProduct
+            );
+
+
+        const cloudWasChanged =
+            !productsAreEqual(
+                baselineProduct,
+                cloudProduct
+            );
+
+
+        // -----------------------------------------------
+        // Beide unverändert
+        // -----------------------------------------------
+
+        if (
+            !localWasChanged &&
+            !cloudWasChanged
+        ) {
+
+            result.unchanged.push({
+                asin,
+                baselineProduct,
+                localProduct,
+                cloudProduct
+            });
+
+            continue;
+        }
+
+
+        // -----------------------------------------------
+        // Nur lokal geändert
+        // -----------------------------------------------
+
+        if (
+            localWasChanged &&
+            !cloudWasChanged
+        ) {
+
+            result.localChanged.push({
+                asin,
+                baselineProduct,
+                localProduct,
+                cloudProduct
+            });
+
+            continue;
+        }
+
+
+        // -----------------------------------------------
+        // Nur zentral geändert
+        // -----------------------------------------------
+
+        if (
+            !localWasChanged &&
+            cloudWasChanged
+        ) {
+
+            result.cloudChanged.push({
+                asin,
+                baselineProduct,
+                localProduct,
+                cloudProduct
+            });
+
+            continue;
+        }
+
+
+        // -----------------------------------------------
+        // Beide geändert
+        //
+        // Wenn beide inzwischen identisch sind,
+        // besteht kein echter Konflikt.
+        // -----------------------------------------------
+
+        if (
+            productsAreEqual(
+                localProduct,
+                cloudProduct
+            )
+        ) {
+
+            result.unchanged.push({
+                asin,
+                baselineProduct,
+                localProduct,
+                cloudProduct
+            });
+
+            continue;
+        }
+
+
+        // -----------------------------------------------
+        // Echter Konflikt
+        // -----------------------------------------------
+
+        result.conflicts.push({
+            asin,
+            baselineProduct,
+            localProduct,
+            cloudProduct
+        });
+    }
+
+
+    return result;
+}
+
+// =======================================================
+// Sicheren Merge aus Baseline, lokal und Cloud erstellen
+// =======================================================
+
+function buildMergedProductState(
+    baselineProducts,
+    localProducts,
+    cloudProducts
+) {
+
+    const comparison =
+        compareProductStates(
+            baselineProducts,
+            localProducts,
+            cloudProducts
+        );
+
+
+    const mergedProducts = [];
+
+
+    // ---------------------------------------------------
+    // Unveränderte Produkte
+    // ---------------------------------------------------
+
+    for (
+        const item of comparison.unchanged
+    ) {
+
+        const product =
+            item.localProduct ||
+            item.cloudProduct ||
+            item.baselineProduct;
+
+
+        if (product) {
+
+            mergedProducts.push(
+                structuredClone(
+                    product
+                )
+            );
+        }
+    }
+
+
+    // ---------------------------------------------------
+    // Nur lokal geändert
+    // ---------------------------------------------------
+
+    for (
+        const item of comparison.localChanged
+    ) {
+
+        if (
+            item.localProduct
+        ) {
+
+            mergedProducts.push(
+                structuredClone(
+                    item.localProduct
+                )
+            );
+        }
+    }
+
+
+    // ---------------------------------------------------
+    // Nur zentral geändert
+    // ---------------------------------------------------
+
+    for (
+        const item of comparison.cloudChanged
+    ) {
+
+        if (
+            item.cloudProduct
+        ) {
+
+            mergedProducts.push(
+                structuredClone(
+                    item.cloudProduct
+                )
+            );
+        }
+    }
+
+
+    // ---------------------------------------------------
+    // Konflikte werden NICHT automatisch übernommen
+    // ---------------------------------------------------
+
+    return {
+        products:
+            mergedProducts,
+
+        conflicts:
+            comparison.conflicts,
+
+        comparison
+    };
+}
+
+
+// =======================================================
+// Konfliktentscheidung in Merge übernehmen
+// =======================================================
+
+function resolveProductConflict(
+    mergeResult,
+    conflict,
+    useLocalVersion
+) {
+
+    if (
+        !mergeResult ||
+        !Array.isArray(
+            mergeResult.products
+        ) ||
+        !conflict
+    ) {
+
+        return false;
+    }
+
+
+    const selectedProduct =
+        useLocalVersion
+            ? conflict.localProduct
+            : conflict.cloudProduct;
+
+
+    if (
+        !selectedProduct
+    ) {
+
+        return false;
+    }
+
+
+    // ---------------------------------------------------
+    // Gewählte Version hinzufügen
+    // ---------------------------------------------------
+
+    mergeResult.products.push(
+        structuredClone(
+            selectedProduct
+        )
+    );
+
+
+    // ---------------------------------------------------
+    // Konflikt aus Konfliktliste entfernen
+    // ---------------------------------------------------
+
+    mergeResult.conflicts =
+        mergeResult.conflicts.filter(
+            item =>
+                item.asin !== conflict.asin
+        );
+
+
+    return true;
+}
+
+
+// =======================================================
+// Vollständig aufgelösten Merge lokal übernehmen
+// =======================================================
+
+function applyMergedProductsLocally(
+    mergeResult
+) {
+
+    if (
+        !mergeResult ||
+        !Array.isArray(
+            mergeResult.products
+        )
+    ) {
+
+        console.error(
+            "Merge-Ergebnis ist ungültig."
+        );
+
+        return false;
+    }
+
+
+    // ---------------------------------------------------
+    // Offene Konflikte dürfen nicht mehr vorhanden sein
+    // ---------------------------------------------------
+
+    if (
+        Array.isArray(
+            mergeResult.conflicts
+        ) &&
+        mergeResult.conflicts.length > 0
+    ) {
+
+        console.warn(
+            "Merge kann noch nicht übernommen werden. "
+            + "Es bestehen noch ungelöste Konflikte."
+        );
+
+        return false;
+    }
+
+
+    // ---------------------------------------------------
+    // Produktliste prüfen
+    // ---------------------------------------------------
+
+    const validation =
+        validateProductList(
+            mergeResult.products
+        );
+
+
+    if (!validation.valid) {
+
+        console.error(
+            "Zusammengeführte Produktliste ist ungültig:",
+            validation.message
+        );
+
+        return false;
+    }
+
+
+    const duplicates =
+        findDuplicateProductFields(
+            mergeResult.products
+        );
+
+
+    if (
+        duplicates.length > 0
+    ) {
+
+        console.error(
+            "Zusammengeführte Produktliste enthält Dubletten:",
+            duplicates
+        );
+
+        return false;
+    }
+
+
+    // ---------------------------------------------------
+    // Lokal übernehmen
+    // ---------------------------------------------------
+
+    products =
+        structuredClone(
+            mergeResult.products
+        );
+
+
+    saveProductsToStorage();
+
+
+    // ---------------------------------------------------
+    // Produktliste ggf. aktualisieren
+    // ---------------------------------------------------
+
+    const productsDialog =
+        document.getElementById(
+            "productsDialog"
+        );
+
+
+    if (
+        productsDialog &&
+        productsDialog.open
+    ) {
+
+        renderProductList();
+    }
+
+
+    console.log(
+        `${products.length} zusammengeführte Produktdaten wurden lokal übernommen.`
+    );
+
+
+    return true;
+}
+
+// =======================================================
+// Offene lokale Änderungen mit Firestore abgleichen
+// =======================================================
+
+async function reconcilePendingProductChanges() {
+
+    if (
+        !hasPendingProductChanges() &&
+        !hasLocalProductChangesComparedToBaseline()
+    ) {
+
+        console.log(
+            "Keine ausstehenden lokalen Produktänderungen vorhanden."
+        );
+
+        return true;
+    }
+
+
+    if (
+        !navigator.onLine ||
+        typeof window.loadProductsFromFirestore !== "function"
+    ) {
+
+        console.log(
+            "Produktabgleich derzeit nicht möglich."
+        );
+
+        return false;
+    }
+
+
+    try {
+
+        // ---------------------------------------------------
+        // Baseline prüfen
+        // ---------------------------------------------------
+
+        const baselineProducts =
+            loadProductBaseline();
+
+
+        if (
+            !Array.isArray(
+                baselineProducts
+            )
+        ) {
+
+            console.warn(
+                "Kein synchronisierter Ausgangsstand vorhanden."
+            );
+
+            return false;
+        }
+
+
+        // ---------------------------------------------------
+        // Aktuellen Cloud-Stand laden
+        // ---------------------------------------------------
+
+        const cloudProducts =
+            await window.loadProductsFromFirestore();
+
+
+        if (
+            !Array.isArray(
+                cloudProducts
+            ) ||
+            cloudProducts.length === 0
+        ) {
+
+            console.warn(
+                "Zentraler Produktstand konnte nicht geladen werden."
+            );
+
+            return false;
+        }
+
+
+        // ---------------------------------------------------
+        // Sicheren Merge erzeugen
+        // ---------------------------------------------------
+
+        const mergeResult =
+            buildMergedProductState(
+                baselineProducts,
+                products,
+                cloudProducts
+            );
+
+
+        console.log({
+            unveraendert:
+                mergeResult.comparison.unchanged.length,
+
+            lokalGeaendert:
+                mergeResult.comparison.localChanged.length,
+
+            cloudGeaendert:
+                mergeResult.comparison.cloudChanged.length,
+
+            konflikte:
+                mergeResult.conflicts.length
+        });
+
+
+        // ---------------------------------------------------
+        // Echter Konflikt vorhanden
+        // ---------------------------------------------------
+
+        if (
+            mergeResult.conflicts.length > 0
+        ) {
+
+            console.log(
+                `${mergeResult.conflicts.length} Produktkonflikt(e) gefunden.`
+            );
+
+
+            showProductConflictDialog(
+                mergeResult.conflicts[0],
+                mergeResult
+            );
+
+
+            return false;
+        }
+
+
+        // ---------------------------------------------------
+        // Keine Konflikte:
+        // Merge lokal übernehmen
+        // ---------------------------------------------------
+
+        const applied =
+            applyMergedProductsLocally(
+                mergeResult
+            );
+
+
+        if (!applied) {
+            return false;
+        }
+
+
+        console.log(
+            "Produktdaten wurden konfliktfrei zusammengeführt."
+        );
+
+
+        // WICHTIG:
+        // Pending bleibt bewusst bestehen.
+        // Firestore wird hier noch NICHT geschrieben.
+
+        return true;
+
+    }
+    catch (error) {
+
+        console.warn(
+            "Produktabgleich konnte nicht durchgeführt werden.",
+            error
+        );
+
+
+        return false;
+    }
+}
+
+
+window.reconcilePendingProductChanges =
+    reconcilePendingProductChanges;
+
+    
+// =======================================================
+// Prüfen, ob lokale Produktänderungen vorhanden sind
+// =======================================================
+
+function hasLocalProductChangesComparedToBaseline() {
+
+    const baseline =
+        loadProductBaseline();
+
+
+    // Ohne Baseline können wir keinen sicheren
+    // Vergleich durchführen.
+    if (
+        !Array.isArray(baseline)
+    ) {
+
+        return hasPendingProductChanges();
+    }
+
+
+    const comparison =
+        compareProductStates(
+            baseline,
+            products,
+            baseline
+        );
+
+
+    return (
+        comparison.localChanged.length > 0 ||
+        comparison.conflicts.length > 0
+    );
+}
+
+window.hasLocalProductChangesComparedToBaseline =
+    hasLocalProductChangesComparedToBaseline;
+
+// =======================================================
+// Unterschiede zwischen zwei Produkten ermitteln
+// =======================================================
+
+function getProductDifferences(
+    localProduct,
+    cloudProduct
+) {
+
+    const fieldNames = {
+        productName: "Produktname",
+        colourVariant: "Farbvariante",
+        manufacturerCode: "Herstellercode",
+        ean: "EAN",
+        sku: "SKU",
+        pack: "Pack",
+        asin: "ASIN"
+    };
+
+
+    const differences = [];
+
+
+    for (
+        const field of Object.keys(
+            fieldNames
+        )
+    ) {
+
+        const localValue =
+            localProduct?.[field] ?? "";
+
+
+        const cloudValue =
+            cloudProduct?.[field] ?? "";
+
+
+        if (
+            localValue !== cloudValue
+        ) {
+
+            differences.push({
+                field,
+                label:
+                    fieldNames[field],
+
+                localValue,
+                cloudValue
+            });
+        }
+    }
+
+
+    return differences;
+}
+
+// =======================================================
+// Produktkonflikt anzeigen
+// =======================================================
+let currentProductConflict = null;
+let currentProductMergeResult = null;
+
+function showProductConflictDialog(
+    conflict,
+    mergeResult
+) {
+
+    if (
+        !conflict ||
+        !mergeResult
+    ) {
+        return;
+    }
+
+
+    currentProductConflict =
+        conflict;
+
+
+    currentProductMergeResult =
+        mergeResult;
+
+
+    const dialog =
+        document.getElementById(
+            "productConflictDialog"
+        );
+
+
+    const asinElement =
+        document.getElementById(
+            "productConflictAsin"
+        );
+
+
+    const differencesElement =
+        document.getElementById(
+            "productConflictDifferences"
+        );
+
+
+    const differences =
+        getProductDifferences(
+            conflict.localProduct,
+            conflict.cloudProduct
+        );
+
+
+    asinElement.textContent =
+        conflict.asin ?? "-";
+
+
+    differencesElement.innerHTML = "";
+
+
+    for (
+        const difference of differences
+    ) {
+
+        const field =
+            document.createElement(
+                "div"
+            );
+
+
+        field.className =
+            "product-conflict-field";
+
+
+        field.innerHTML = `
+            <div class="product-conflict-field-title">
+                ${difference.label}
+            </div>
+
+            <div class="product-conflict-columns">
+
+                <div class="product-conflict-column">
+
+                    <span class="product-conflict-column-label">
+                        DIESER RECHNER
+                    </span>
+
+                    <div class="product-conflict-value"></div>
+
+                </div>
+
+                <div class="product-conflict-column">
+
+                    <span class="product-conflict-column-label">
+                        ZENTRALER STAND
+                    </span>
+
+                    <div class="product-conflict-value"></div>
+
+                </div>
+
+            </div>
+        `;
+
+
+        const valueElements =
+            field.querySelectorAll(
+                ".product-conflict-value"
+            );
+
+
+        valueElements[0].textContent =
+            difference.localValue || "(leer)";
+
+
+        valueElements[1].textContent =
+            difference.cloudValue || "(leer)";
+
+
+        differencesElement.appendChild(
+            field
+        );
+    }
+
+
+    dialog.showModal();
+}
 
 // =======================================================
 // Verständliche Import-Diagnose erzeugen
@@ -2621,7 +3989,7 @@ function validateProductForm(product) {
     return true;
 }
 
-function saveProductFromForm() {
+async function saveProductFromForm() {
 
     const product = {
 
@@ -2766,10 +4134,67 @@ function saveProductFromForm() {
 
 
     // ---------------------------------------------------
-    // Produktdaten speichern
+    // Produktdaten lokal speichern
     // ---------------------------------------------------
 
     saveProductsToStorage();
+
+
+    // ---------------------------------------------------
+    // Produktdaten bei Online-Verbindung zentral speichern
+    // ---------------------------------------------------
+
+    if (
+        navigator.onLine &&
+        typeof window.saveProductListToFirestore === "function"
+    ) {
+
+        const newVersion =
+            await window.saveProductListToFirestore(
+                products
+            );
+
+
+        if (
+            newVersion !== null
+        ) {
+
+            setLocalProductDataVersion(
+                newVersion
+            );
+
+
+            // ---------------------------------------------------
+            // Erfolgreich synchronisierten Stand als neue
+            // Vergleichsbasis speichern
+            // ---------------------------------------------------
+
+            saveProductBaseline(
+                products
+            );
+
+
+            clearPendingProductChanges();
+
+
+            console.log(
+                `Lokale Produktdaten-Version wurde auf ${newVersion} aktualisiert.`
+            );
+        }
+        else {
+
+            markProductChangesPending();
+        }
+    }
+    else {
+
+        markProductChangesPending();
+
+
+        console.log(
+            "Produktänderung wurde nur lokal gespeichert."
+        );
+    }
 
 
     // ---------------------------------------------------
@@ -2817,7 +4242,7 @@ editAsin.addEventListener(
 );
 
 
-function deleteSelectedProduct() {
+async function deleteSelectedProduct() {
 
     if (
         selectedProductIndex === null
@@ -2849,7 +4274,7 @@ function deleteSelectedProduct() {
 
 
     // ---------------------------------------------------
-    // Produkt entfernen und Stammdaten speichern
+    // Produkt entfernen
     // ---------------------------------------------------
 
     products.splice(
@@ -2858,7 +4283,78 @@ function deleteSelectedProduct() {
     );
 
 
+    // ---------------------------------------------------
+    // Produktdaten lokal speichern
+    // ---------------------------------------------------
+
     saveProductsToStorage();
+
+
+    // ---------------------------------------------------
+    // Produktdaten bei Online-Verbindung zentral speichern
+    // ---------------------------------------------------
+
+    if (
+        navigator.onLine &&
+        typeof window.saveProductListToFirestore === "function"
+    ) {
+
+        const newVersion =
+            await window.saveProductListToFirestore(
+                products
+            );
+
+
+        if (
+            newVersion !== null
+        ) {
+
+            setLocalProductDataVersion(
+                newVersion
+            );
+
+
+            // ---------------------------------------------------
+            // Erfolgreich synchronisierten Stand als neue
+            // Vergleichsbasis speichern
+            // ---------------------------------------------------
+
+            saveProductBaseline(
+                products
+            );
+
+
+            clearPendingProductChanges();
+
+
+            console.log(
+                `Lokale Produktdaten-Version wurde auf ${newVersion} aktualisiert.`
+            );
+        }
+        else {
+
+            markProductChangesPending();
+
+
+            console.log(
+                "Produktlöschung konnte noch nicht zentral synchronisiert werden."
+            );
+        }
+    }
+    else {
+
+        markProductChangesPending();
+
+
+        console.log(
+            "Produktlöschung wurde nur lokal gespeichert."
+        );
+    }
+
+
+    // ---------------------------------------------------
+    // Auswahl zurücksetzen
+    // ---------------------------------------------------
 
     selectedProductIndex = null;
 
@@ -3218,7 +4714,73 @@ async function importProductsJson(file) {
             );
 
 
+        // ---------------------------------------------------
+        // Produktdaten lokal speichern
+        // ---------------------------------------------------
+
         saveProductsToStorage();
+
+
+        // ---------------------------------------------------
+        // Produktdaten bei Online-Verbindung zentral speichern
+        // ---------------------------------------------------
+
+        if (
+            navigator.onLine &&
+            typeof window.saveProductListToFirestore === "function"
+        ) {
+
+            const newVersion =
+                await window.saveProductListToFirestore(
+                    products
+                );
+
+
+            if (
+                newVersion !== null
+            ) {
+
+                setLocalProductDataVersion(
+                    newVersion
+                );
+
+
+                // ---------------------------------------------------
+                // Erfolgreich synchronisierten Stand als neue
+                // Vergleichsbasis speichern
+                // ---------------------------------------------------
+
+                saveProductBaseline(
+                    products
+                );
+
+
+                clearPendingProductChanges();
+
+
+                console.log(
+                    `Lokale Produktdaten-Version wurde auf ${newVersion} aktualisiert.`
+                );
+            }
+            else {
+
+                markProductChangesPending();
+
+
+                console.log(
+                    "Importierte Produktdaten konnten noch nicht zentral synchronisiert werden."
+                );
+            }
+        }
+        else {
+
+            markProductChangesPending();
+
+
+            console.log(
+                "Importierte Produktdaten wurden nur lokal gespeichert."
+            );
+        }
 
 
         // ---------------------------------------------------
@@ -3265,7 +4827,7 @@ async function importProductsJson(file) {
 // Produktliste auf Standard zurücksetzen
 // =======================================================
 
-function resetProductsToDefaults() {
+async function resetProductsToDefaults() {
 
     // ---------------------------------------------------
     // Zurücksetzen bestätigen
@@ -3294,10 +4856,72 @@ function resetProductsToDefaults() {
 
 
     // ---------------------------------------------------
-    // Produktdaten speichern
+    // Produktdaten lokal speichern
     // ---------------------------------------------------
 
     saveProductsToStorage();
+
+
+    // ---------------------------------------------------
+    // Produktdaten bei Online-Verbindung zentral speichern
+    // ---------------------------------------------------
+
+    if (
+        navigator.onLine &&
+        typeof window.saveProductListToFirestore === "function"
+    ) {
+
+        const newVersion =
+            await window.saveProductListToFirestore(
+                products
+            );
+
+
+        if (
+            newVersion !== null
+        ) {
+
+            setLocalProductDataVersion(
+                newVersion
+            );
+
+
+            // ---------------------------------------------------
+            // Erfolgreich synchronisierten Stand als neue
+            // Vergleichsbasis speichern
+            // ---------------------------------------------------
+
+            saveProductBaseline(
+                products
+            );
+
+
+            clearPendingProductChanges();
+
+
+            console.log(
+                `Lokale Produktdaten-Version wurde auf ${newVersion} aktualisiert.`
+            );
+        }
+        else {
+
+            markProductChangesPending();
+
+
+            console.log(
+                "Standard-Produktdaten konnten noch nicht zentral synchronisiert werden."
+            );
+        }
+    }
+    else {
+
+        markProductChangesPending();
+
+
+        console.log(
+            "Standard-Produktdaten wurden nur lokal wiederhergestellt."
+        );
+    }
 
 
     // ---------------------------------------------------
@@ -3332,6 +4956,112 @@ function resetProductsToDefaults() {
         `${products.length} Standard-Produkte wurden wiederhergestellt.`
     );
 }
+
+
+// =======================================================
+// Produkt-Merge finalisieren
+// =======================================================
+
+async function finalizeProductMerge(
+    mergeResult
+) {
+
+    if (
+        !mergeResult ||
+        !Array.isArray(
+            mergeResult.products
+        ) ||
+        mergeResult.conflicts.length > 0
+    ) {
+
+        console.error(
+            "Produkt-Merge ist noch nicht vollständig aufgelöst."
+        );
+
+        return false;
+    }
+
+
+    if (
+        !navigator.onLine ||
+        typeof window.saveProductListToFirestore !== "function"
+    ) {
+
+        console.warn(
+            "Produktdaten können derzeit nicht zentral gespeichert werden."
+        );
+
+        return false;
+    }
+
+
+    try {
+
+        const newVersion =
+            await window.saveProductListToFirestore(
+                mergeResult.products
+            );
+
+
+        if (
+            newVersion === null ||
+            newVersion === undefined
+        ) {
+
+            console.warn(
+                "Zentrale Speicherung wurde nicht bestätigt."
+            );
+
+            return false;
+        }
+
+
+        // ---------------------------------------------------
+        // Erst jetzt gilt alles als vollständig synchronisiert
+        // ---------------------------------------------------
+
+        products =
+            structuredClone(
+                mergeResult.products
+            );
+
+
+        saveProductsToStorage();
+
+
+        setLocalProductDataVersion(
+            newVersion
+        );
+
+
+        saveProductBaseline(
+            products
+        );
+
+
+        clearPendingProductChanges();
+
+
+        console.log(
+            `Produktdaten wurden vollständig synchronisiert. Version ${newVersion}.`
+        );
+
+
+        return true;
+
+    }
+    catch (error) {
+
+        console.warn(
+            "Abschluss der Produktsynchronisation fehlgeschlagen.",
+            error
+        );
+
+
+        return false;
+    }
+}
+
 
 // =======================================================
 // Kompakte Import-Statusleiste
@@ -3754,6 +5484,309 @@ document
     );
 
 
+document
+    .getElementById(
+        "productConflictUseCloud"
+    )
+    .addEventListener(
+        "click",
+        async () => {
+
+            if (
+                !currentProductConflict ||
+                !currentProductMergeResult
+            ) {
+                return;
+            }
+
+
+            const success =
+                resolveProductConflict(
+                    currentProductMergeResult,
+                    currentProductConflict,
+                    false
+                );
+
+
+            if (!success) {
+
+                console.error(
+                    "Konflikt konnte nicht mit dem zentralen Stand aufgelöst werden."
+                );
+
+                return;
+            }
+
+
+            console.log(
+                "Zentraler Stand wurde für den aktuellen Konflikt ausgewählt."
+            );
+
+
+            // ---------------------------------------------------
+            // Gibt es noch weitere Konflikte?
+            // ---------------------------------------------------
+
+            if (
+                currentProductMergeResult.conflicts.length > 0
+            ) {
+
+                const nextConflict =
+                    currentProductMergeResult.conflicts[0];
+
+
+                showProductConflictDialog(
+                    nextConflict,
+                    currentProductMergeResult
+                );
+
+
+                return;
+            }
+
+
+            // ---------------------------------------------------
+            // Alle Konflikte gelöst:
+            // Merge lokal übernehmen
+            // ---------------------------------------------------
+
+            const applied =
+                applyMergedProductsLocally(
+                    currentProductMergeResult
+                );
+
+
+            if (!applied) {
+
+                console.error(
+                    "Zusammengeführte Produktdaten konnten nicht lokal übernommen werden."
+                );
+
+                return;
+            }
+
+
+            console.log(
+                "Alle Produktkonflikte wurden aufgelöst."
+            );
+
+
+            console.log({
+                produkte:
+                    currentProductMergeResult.products.length,
+
+                verbleibendeKonflikte:
+                    currentProductMergeResult.conflicts.length
+            });
+
+
+            // ---------------------------------------------------
+            // Zusammengeführten Stand zentral speichern
+            // ---------------------------------------------------
+
+            const finalized =
+                await finalizeProductMerge(
+                    currentProductMergeResult
+                );
+
+
+            if (!finalized) {
+
+                console.warn(
+                    "Der zusammengeführte Produktstand konnte noch nicht zentral gespeichert werden."
+                );
+
+                productConflictDialog.close();
+
+                return;
+            }
+
+
+            console.log(
+                "Produktsynchronisation wurde vollständig abgeschlossen."
+            );
+
+
+            currentProductConflict =
+                null;
+
+            currentProductMergeResult =
+                null;
+
+
+            productConflictDialog.close();
+        }
+    );
+
+
+document
+    .getElementById(
+        "productConflictUseLocal"
+    )
+    .addEventListener(
+        "click",
+        async () => {
+
+            if (
+                !currentProductConflict ||
+                !currentProductMergeResult
+            ) {
+                return;
+            }
+
+
+            const success =
+                resolveProductConflict(
+                    currentProductMergeResult,
+                    currentProductConflict,
+                    true
+                );
+
+
+            if (!success) {
+
+                console.error(
+                    "Konflikt konnte nicht mit dem lokalen Stand aufgelöst werden."
+                );
+
+                return;
+            }
+
+
+            console.log(
+                "Lokaler Stand wurde für den aktuellen Konflikt ausgewählt."
+            );
+
+
+            // ---------------------------------------------------
+            // Gibt es noch weitere Konflikte?
+            // ---------------------------------------------------
+
+            if (
+                currentProductMergeResult.conflicts.length > 0
+            ) {
+
+                const nextConflict =
+                    currentProductMergeResult.conflicts[0];
+
+
+                showProductConflictDialog(
+                    nextConflict,
+                    currentProductMergeResult
+                );
+
+
+                return;
+            }
+
+
+            // ---------------------------------------------------
+            // Alle Konflikte gelöst:
+            // Merge lokal übernehmen
+            // ---------------------------------------------------
+
+            const applied =
+                applyMergedProductsLocally(
+                    currentProductMergeResult
+                );
+
+
+            if (!applied) {
+
+                console.error(
+                    "Zusammengeführte Produktdaten konnten nicht lokal übernommen werden."
+                );
+
+                return;
+            }
+
+
+            console.log(
+                "Alle Produktkonflikte wurden aufgelöst."
+            );
+
+
+            console.log({
+                produkte:
+                    currentProductMergeResult.products.length,
+
+                verbleibendeKonflikte:
+                    currentProductMergeResult.conflicts.length
+            });
+
+
+            // ---------------------------------------------------
+            // Zusammengeführten Stand zentral speichern
+            // ---------------------------------------------------
+
+            const finalized =
+                await finalizeProductMerge(
+                    currentProductMergeResult
+                );
+
+
+            if (!finalized) {
+
+                console.warn(
+                    "Der zusammengeführte Produktstand konnte noch nicht zentral gespeichert werden."
+                );
+
+                productConflictDialog.close();
+
+                return;
+            }
+
+
+            console.log(
+                "Produktsynchronisation wurde vollständig abgeschlossen."
+            );
+
+
+            currentProductConflict =
+                null;
+
+            currentProductMergeResult =
+                null;
+
+
+            productConflictDialog.close();
+        }
+    );
+// =======================================================
+// Produktkonflikt-Dialog schließen
+// =======================================================
+
+const productConflictDialog =
+    document.getElementById(
+        "productConflictDialog"
+    );
+
+
+document
+    .getElementById(
+        "closeProductConflict"
+    )
+    .addEventListener(
+        "click",
+        () => {
+
+            productConflictDialog.close();
+        }
+    );
+
+
+document
+    .getElementById(
+        "productConflictCancel"
+    )
+    .addEventListener(
+        "click",
+        () => {
+
+            productConflictDialog.close();
+        }
+    );
+
 // -------------------------------------------------------
 // Hilfe- und Info-Dialoge
 // -------------------------------------------------------
@@ -3970,12 +6003,12 @@ const productsDialog =
         "productsDialog"
     );
 
-
+/*
 const productSearch =
     document.getElementById(
         "productSearch"
     );
-
+*/
 
 // -------------------------------------------------------
 // Produktliste öffnen
@@ -4226,3 +6259,68 @@ document
             changelogDialog.close();
         }
     );
+
+
+
+   // =======================================================
+    // Nach-oben-Schaltfläche
+    // =======================================================
+
+    const scrollToTopButton =
+        document.getElementById(
+            "scrollToTop"
+        );
+
+
+    // -------------------------------------------------------
+    // Sichtbarkeit abhängig von Scrollposition
+    // -------------------------------------------------------
+
+    function updateScrollToTopButton() {
+
+        if (
+            window.scrollY > 250
+        ) {
+
+            scrollToTopButton.classList.add(
+                "visible"
+            );
+
+        }
+        else {
+
+            scrollToTopButton.classList.remove(
+                "visible"
+            );
+        }
+    }
+
+
+    // -------------------------------------------------------
+    // Nach oben scrollen
+    // -------------------------------------------------------
+
+    scrollToTopButton.addEventListener(
+        "click",
+        () => {
+
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
+        }
+    );
+
+
+    // -------------------------------------------------------
+    // Scrollposition überwachen
+    // -------------------------------------------------------
+
+    window.addEventListener(
+        "scroll",
+        updateScrollToTopButton
+    );
+
+
+    // Anfangszustand setzen
+    updateScrollToTopButton();
