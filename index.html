@@ -1390,15 +1390,21 @@
     <div class="system-status-inner">
 
         <div class="status-item">
-            <span class="status-light online"></span>
+            <span
+                class="status-light online"
+                id="statusSystemLight"
+            ></span>
 
             <div class="status-text">
                 <span class="status-label">
                     SYSTEM
                 </span>
 
-                <span class="status-value">
-                    ONLINE
+                <span
+                    class="status-value"
+                    id="statusSystem"
+                >
+                    –
                 </span>
             </div>
         </div>
@@ -1408,15 +1414,21 @@
 
 
         <div class="status-item">
-            <span class="status-light online"></span>
+            <span
+                class="status-light online"
+                id="statusFirestoreLight"
+            ></span>
 
             <div class="status-text">
                 <span class="status-label">
-                    FIREBASE
+                    FIRESTORE
                 </span>
 
-                <span class="status-value">
-                    VERBUNDEN
+                <span
+                    class="status-value"
+                    id="statusFirestore"
+                >
+                    –
                 </span>
             </div>
         </div>
@@ -1426,15 +1438,21 @@
 
 
         <div class="status-item">
-            <span class="status-light online"></span>
+            <span
+                class="status-light online"
+                id="statusDataLight"
+            ></span>
 
             <div class="status-text">
                 <span class="status-label">
                     DATEN
                 </span>
 
-                <span class="status-value">
-                    SYNCHRON
+                <span
+                    class="status-value"
+                    id="statusDataSync"
+                >
+                    –
                 </span>
             </div>
         </div>
@@ -1449,8 +1467,11 @@
                     PRODUKTE
                 </span>
 
-                <span class="status-value">
-                    9
+                <span
+                    class="status-value"
+                    id="statusProductCount"
+                >
+                    –
                 </span>
             </div>
         </div>
@@ -1465,8 +1486,11 @@
                     DATENVERSION
                 </span>
 
-                <span class="status-value">
-                    10
+                <span
+                    class="status-value"
+                    id="statusDataVersion"
+                >
+                    –
                 </span>
             </div>
         </div>
@@ -1476,15 +1500,21 @@
 
 
         <div class="status-item status-offline-ready">
-            <span class="status-light ready"></span>
+            <span
+                class="status-light ready"
+                id="statusFailSafeLight"
+            ></span>
 
             <div class="status-text">
                 <span class="status-label">
                     AUSFALLSICHERHEIT
                 </span>
 
-                <span class="status-value">
-                    OFFLINE BEREIT
+                <span
+                    class="status-value"
+                    id="statusFailSafe"
+                >
+                    –
                 </span>
             </div>
         </div>
@@ -1601,51 +1631,100 @@
         // Auf wiederhergestellte Internetverbindung reagieren
         // ===================================================
 
-        window.addEventListener(
-            "online",
-            async () => {
+        // ===================================================
+// Auf wiederhergestellte Internetverbindung reagieren
+// ===================================================
 
-                console.log(
-                    "Internetverbindung wieder verfügbar."
-                );
+window.addEventListener(
+    "online",
+    async () => {
 
-
-                // ---------------------------------------------------
-                // Merken, ob Firebase bereits vor dem Reconnect
-                // geladen war
-                // ---------------------------------------------------
-
-                const firebaseWasAlreadyLoaded =
-                    firebaseLoaded;
+        console.log(
+            "Internetverbindung wieder verfügbar."
+        );
 
 
-                // ---------------------------------------------------
-                // Firebase bei Bedarf laden
-                // ---------------------------------------------------
-
-                await loadFirebaseIfOnline();
+        const firebaseWasAlreadyLoaded =
+            firebaseLoaded;
 
 
-                // ---------------------------------------------------
-                // War Firebase bereits geladen, wird das Modul nicht
-                // erneut importiert. Deshalb müssen wir den sicheren
-                // Produktabgleich jetzt selbst anstoßen.
-                //
-                // Bei einem erstmaligen Firebase-Import übernimmt
-                // dagegen onAuthStateChanged() in firebase.js.
-                // Dadurch vermeiden wir einen doppelten Sync.
-                // ---------------------------------------------------
+        await loadFirebaseIfOnline();
 
-                if (
-                    firebaseWasAlreadyLoaded &&
-                    typeof window.reconcilePendingProductChanges === "function"
-                ) {
 
+        // ---------------------------------------------------
+        // Firebase wurde gerade erstmals geladen
+        //
+        // Dann übernimmt onAuthStateChanged() in firebase.js
+        // die weitere Synchronisation und Statusanzeige.
+        // ---------------------------------------------------
+
+        if (!firebaseWasAlreadyLoaded) {
+            return;
+        }
+
+
+        // ---------------------------------------------------
+        // Firebase war bereits geladen:
+        // sicheren Produktabgleich durchführen
+        // ---------------------------------------------------
+
+        let syncSuccessful = false;
+
+
+        const hasPendingChanges =
+            typeof window.hasPendingProductChanges === "function"
+                ? window.hasPendingProductChanges()
+                : false;
+
+
+        const hasLocalChanges =
+            typeof window.hasLocalProductChangesComparedToBaseline === "function"
+                ? window.hasLocalProductChangesComparedToBaseline()
+                : false;
+
+
+        if (
+            hasPendingChanges ||
+            hasLocalChanges
+        ) {
+
+            if (
+                typeof window.reconcilePendingProductChanges === "function"
+            ) {
+
+                syncSuccessful =
                     await window
                         .reconcilePendingProductChanges();
-                }
             }
-        );
+        }
+        else {
+
+            if (
+                typeof window.syncProductsFromFirestoreIfNeeded === "function"
+            ) {
+
+                syncSuccessful =
+                    await window
+                        .syncProductsFromFirestoreIfNeeded();
+            }
+        }
+
+
+        // ---------------------------------------------------
+        // Firestore war beim Abgleich tatsächlich erreichbar
+        // ---------------------------------------------------
+
+        if (
+            syncSuccessful &&
+            typeof window.updateFirestoreStatus === "function"
+        ) {
+
+            window.updateFirestoreStatus(
+                "connected"
+            );
+        }
+    }
+);
     </script>
 
 

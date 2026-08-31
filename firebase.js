@@ -90,6 +90,15 @@ const firestoreDb =
         firebaseApp
     );
 
+if (
+    typeof window.updateFirestoreStatus === "function"
+) {
+
+    window.updateFirestoreStatus(
+        "connecting"
+    );
+}
+
 
 // =======================================================
 // Für andere JavaScript-Dateien bereitstellen
@@ -242,6 +251,15 @@ onAuthStateChanged(
                 user.email
             );
 
+            if (
+                typeof window.updateFirestoreStatus === "function"
+            ) {
+
+                window.updateFirestoreStatus(
+                    "connected"
+                );
+            }
+
 
 
             // ---------------------------------------------------
@@ -282,6 +300,7 @@ onAuthStateChanged(
                     await window
                         .syncProductsFromFirestoreIfNeeded();
                 }
+              
             }
 
         }

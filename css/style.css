@@ -1581,6 +1581,20 @@ tbody tr:hover {
         0 0 5px rgba(101, 191, 255, 0.7);
 }
 
+.status-light.pending {
+    background: #ff9f1a;
+
+    box-shadow:
+        0 0 5px rgba(255, 159, 26, 0.7);
+}
+
+.status-light.offline {
+    background: #7f8c98;
+
+    box-shadow:
+        0 0 5px rgba(127, 140, 152, 0.5);
+}
+
 
 /* ------------------------------------------------------
    Trennlinien

@@ -29,6 +29,8 @@ let exportSummary = null;
 
 let products = [];
 
+let serviceWorkerReady = false;
+
 
 // =======================================================
 // Produkt-Stammdaten speichern
@@ -40,6 +42,13 @@ function saveProductsToStorage() {
         PRODUCT_STORAGE_KEY,
         JSON.stringify(products)
     );
+
+
+    // ---------------------------------------------------
+    // Produktanzahl in der Statusleiste aktualisieren
+    // ---------------------------------------------------
+
+    updateProductCountStatus();
 }
 
 // =======================================================
@@ -73,6 +82,62 @@ function getLocalProductDataVersion() {
     return version;
 }
 
+// =======================================================
+// Datenversion in der Statusleiste aktualisieren
+// =======================================================
+
+function updateDataVersionStatus() {
+
+    const statusElement =
+        document.getElementById(
+            "statusDataVersion"
+        );
+
+
+    if (!statusElement) {
+        return;
+    }
+
+
+    const version =
+        getLocalProductDataVersion();
+
+
+    statusElement.textContent =
+        version;
+}
+
+// =======================================================
+// Datenversion beim Programmstart anzeigen
+// =======================================================
+
+updateDataVersionStatus();
+
+
+
+// =======================================================
+// Produktanzahl in der Statusleiste aktualisieren
+// =======================================================
+
+function updateProductCountStatus() {
+
+    const statusElement =
+        document.getElementById(
+            "statusProductCount"
+        );
+
+
+    if (!statusElement) {
+        return;
+    }
+
+
+    statusElement.textContent =
+        products.length;
+
+    updateFailSafeStatus();
+}
+
 
 // =======================================================
 // Lokale Produktdaten-Version speichern
@@ -86,6 +151,13 @@ function setLocalProductDataVersion(
         PRODUCT_VERSION_STORAGE_KEY,
         String(version)
     );
+
+
+    // ---------------------------------------------------
+    // Statusleiste aktualisieren
+    // ---------------------------------------------------
+
+    updateDataVersionStatus();
 }
 
 
@@ -103,18 +175,215 @@ function hasPendingProductChanges() {
     );
 }
 
-window.hasPendingProductChanges =
-    hasPendingProductChanges;
 // =======================================================
-// Lokale Produktänderungen als ausstehend markieren
+// Daten-Synchronisationsstatus aktualisieren
 // =======================================================
 
-function markProductChangesPending() {
+function updateDataSyncStatus() {
+
+    const statusValue =
+        document.getElementById(
+            "statusDataSync"
+        );
+
+
+    const statusLight =
+        document.getElementById(
+            "statusDataLight"
+        );
+
+
+    if (
+        !statusValue ||
+        !statusLight
+    ) {
+        return;
+    }
+
+
+    // ---------------------------------------------------
+    // Offline
+    // ---------------------------------------------------
+
+    if (!navigator.onLine) {
+
+        statusValue.textContent =
+            "OFFLINE";
+
+
+        statusLight.className =
+             "status-light offline";
+
+
+        return;
+    }
+
+
+    // ---------------------------------------------------
+    // Lokale Änderungen warten auf Synchronisation
+    // ---------------------------------------------------
+
+    if (
+        hasPendingProductChanges()
+    ) {
+
+        statusValue.textContent =
+            "AUSSTEHEND";
+
+
+        statusLight.className =
+            "status-light pending";
+
+
+        return;
+    }
+
+
+    // ---------------------------------------------------
+    // Alles synchron
+    // ---------------------------------------------------
+
+    statusValue.textContent =
+        "SYNCHRON";
+
+
+    statusLight.className =
+        "status-light online";
+}
+
+// =======================================================
+// Firestore-Status aktualisieren
+// =======================================================
+
+function updateFirestoreStatus(
+    status
+) {
+
+    const statusValue =
+        document.getElementById(
+            "statusFirestore"
+        );
+
+
+    const statusLight =
+        document.getElementById(
+            "statusFirestoreLight"
+        );
+
+
+    if (
+        !statusValue ||
+        !statusLight
+    ) {
+        return;
+    }
+
+
+    switch (status) {
+
+        case "connecting":
+
+            statusValue.textContent =
+                "VERBINDET…";
+
+            statusLight.className =
+                "status-light pending";
+
+            break;
+
+
+        case "connected":
+
+            statusValue.textContent =
+                "VERBUNDEN";
+
+            statusLight.className =
+                "status-light online";
+
+            break;
+
+
+        case "disconnected":
+
+            statusValue.textContent =
+                "NICHT VERBUNDEN";
+
+            statusLight.className =
+                "status-light offline";
+
+            break;
+
+    }
+}
+
+
+window.updateFirestoreStatus =
+    updateFirestoreStatus;
+
+
+
+
+// =======================================================
+// Auf Änderungen der Internetverbindung reagieren
+// =======================================================
+
+window.addEventListener(
+    "online",
+    () => {
+
+        updateSystemStatus();
+        updateDataSyncStatus();    
+        updateFirestoreStatus(
+            "connecting"
+        );
+
+        
+    }
+);
+
+window.addEventListener(
+    "offline",
+    () => {
+
+        updateSystemStatus();
+        updateDataSyncStatus();
+        updateFirestoreStatus(
+            "disconnected"
+        );
+    }
+);
+
+
+// =======================================================
+// Systemstatus nach vollständigem Programmstart anzeigen
+// =======================================================
+
+window.addEventListener(
+    "load",
+    () => {
+
+        updateSystemStatus();
+        updateDataSyncStatus();
+    }
+);
+
+
+window.hasPendingProductChanges =
+    hasPendingProductChanges;
+
+    function markProductChangesPending() {
 
     localStorage.setItem(
         PRODUCT_PENDING_STORAGE_KEY,
         "true"
     );
+
+
+    // ---------------------------------------------------
+    // Statusleiste aktualisieren
+    // ---------------------------------------------------
+
+    updateDataSyncStatus();
 
 
     console.log(
@@ -123,15 +392,19 @@ function markProductChangesPending() {
 }
 
 
-// =======================================================
-// Pending-Markierung löschen
-// =======================================================
 
 function clearPendingProductChanges() {
 
     localStorage.removeItem(
         PRODUCT_PENDING_STORAGE_KEY
     );
+
+
+    // ---------------------------------------------------
+    // Statusleiste aktualisieren
+    // ---------------------------------------------------
+
+    updateDataSyncStatus();
 
 
     console.log(
@@ -487,6 +760,9 @@ function loadProducts() {
             if (Array.isArray(parsed)) {
 
                 products = parsed;
+
+
+                updateProductCountStatus();
 
 
                 console.log(
@@ -1506,9 +1782,33 @@ async function reconcilePendingProductChanges() {
         );
 
 
-        // WICHTIG:
-        // Pending bleibt bewusst bestehen.
-        // Firestore wird hier noch NICHT geschrieben.
+        // ---------------------------------------------------
+        // Konfliktfreien Merge vollständig synchronisieren
+        // ---------------------------------------------------
+
+        const finalized =
+            await finalizeProductMerge(
+                mergeResult
+            );
+
+
+        if (!finalized) {
+
+            console.warn(
+                "Der konfliktfrei zusammengeführte Produktstand "
+                + "konnte noch nicht zentral gespeichert werden."
+            );
+
+
+            // Pending bleibt bestehen
+            return false;
+        }
+
+
+        console.log(
+            "Konfliktfreie Produktsynchronisation wurde vollständig abgeschlossen."
+        );
+
 
         return true;
 
@@ -5437,6 +5737,125 @@ function renderChangelog() {
         );
     }
 }
+
+
+// =======================================================
+// Systemstatus aktualisieren
+// =======================================================
+
+function updateSystemStatus() {
+
+    const statusValue =
+        document.getElementById(
+            "statusSystem"
+        );
+
+
+    const statusLight =
+        document.getElementById(
+            "statusSystemLight"
+        );
+
+
+    if (
+        !statusValue ||
+        !statusLight
+    ) {
+        return;
+    }
+
+
+    if (navigator.onLine) {
+
+        statusValue.textContent =
+            "ONLINE";
+
+
+        statusLight.className =
+            "status-light online";
+    }
+    else {
+
+        statusValue.textContent =
+            "OFFLINE";
+
+
+        statusLight.className =
+            "status-light offline";
+    }
+}
+
+
+// =======================================================
+// Status der Ausfallsicherheit aktualisieren
+// =======================================================
+
+function updateFailSafeStatus() {
+
+    const statusValue =
+        document.getElementById(
+            "statusFailSafe"
+        );
+
+
+    const statusLight =
+        document.getElementById(
+            "statusFailSafeLight"
+        );
+
+
+    if (
+        !statusValue ||
+        !statusLight
+    ) {
+        return;
+    }
+
+
+    const localProductsAvailable =
+        Array.isArray(products) &&
+        products.length > 0;
+
+
+    if (
+        serviceWorkerReady &&
+        localProductsAvailable
+    ) {
+
+        statusValue.textContent =
+            "OFFLINE BEREIT";
+
+
+        statusLight.className =
+            "status-light ready";
+    }
+    else {
+
+        statusValue.textContent =
+            "NICHT BEREIT";
+
+
+        statusLight.className =
+            "status-light offline";
+    }
+}
+
+
+// Für die Service-Worker-Registrierung bereitstellen
+window.setServiceWorkerReady =
+    ready => {
+
+        serviceWorkerReady =
+            ready === true;
+
+
+        updateFailSafeStatus();
+    };
+
+
+
+
+
 // =======================================================
 // Events
 // =======================================================
@@ -6190,6 +6609,15 @@ if (
                     registration.scope
                 );
 
+                if (
+                    typeof window.setServiceWorkerReady === "function"
+                ) {
+
+                    window.setServiceWorkerReady(
+                        true
+                    );
+                }
+
             }
             catch (error) {
 
@@ -6197,6 +6625,15 @@ if (
                     "Service Worker konnte nicht registriert werden:",
                     error
                 );
+
+                if (
+                    typeof window.setServiceWorkerReady === "function"
+                ) {
+
+                    window.setServiceWorkerReady(
+                        false
+                    );
+                }
             }
         }
     );
