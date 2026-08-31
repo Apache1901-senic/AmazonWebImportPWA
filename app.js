@@ -373,45 +373,84 @@ window.hasPendingProductChanges =
 
     function markProductChangesPending() {
 
-    localStorage.setItem(
-        PRODUCT_PENDING_STORAGE_KEY,
-        "true"
-    );
+        const wasAlreadyPending =
+            hasPendingProductChanges();
 
 
-    // ---------------------------------------------------
-    // Statusleiste aktualisieren
-    // ---------------------------------------------------
-
-    updateDataSyncStatus();
-
-
-    console.log(
-        "Lokale Produktänderungen warten auf Synchronisation."
-    );
-}
+        localStorage.setItem(
+            PRODUCT_PENDING_STORAGE_KEY,
+            "true"
+        );
 
 
-
-function clearPendingProductChanges() {
-
-    localStorage.removeItem(
-        PRODUCT_PENDING_STORAGE_KEY
-    );
+        updateDataSyncStatus();
 
 
-    // ---------------------------------------------------
-    // Statusleiste aktualisieren
-    // ---------------------------------------------------
-
-    updateDataSyncStatus();
+        console.log(
+            "Lokale Produktänderungen warten auf Synchronisation."
+        );
 
 
-    console.log(
-        "Lokale Produktänderungen sind vollständig synchronisiert."
-    );
-}
+        // ---------------------------------------------------
+        // Benutzerhinweis nur beim ersten Pending-Zustand
+        // ---------------------------------------------------
 
+        if (
+            !wasAlreadyPending &&
+            typeof showNotification === "function"
+        ) {
+
+            showNotification(
+                "warning",
+                "Offline gespeichert",
+                "Die Änderung wurde lokal gespeichert und wird synchronisiert, sobald die Verbindung wieder verfügbar ist.",
+                5000
+            );
+        }
+    }
+
+
+
+    function clearPendingProductChanges() {
+
+        const wasPending =
+            hasPendingProductChanges();
+
+
+        localStorage.removeItem(
+            PRODUCT_PENDING_STORAGE_KEY
+        );
+
+
+        // ---------------------------------------------------
+        // Statusleiste aktualisieren
+        // ---------------------------------------------------
+
+        updateDataSyncStatus();
+
+
+        console.log(
+            "Lokale Produktänderungen sind vollständig synchronisiert."
+        );
+
+
+        // ---------------------------------------------------
+        // Benutzer über abgeschlossene Synchronisation informieren
+        // ---------------------------------------------------
+
+        if (
+            wasPending &&
+            typeof showNotification === "function"
+        ) {
+
+            showNotification(
+                "success",
+                "Synchronisation abgeschlossen",
+                "Die lokal gespeicherten Änderungen wurden erfolgreich mit Firestore synchronisiert.",
+                5000
+            );
+        }
+    }
     
 
 
@@ -3768,6 +3807,22 @@ function renderProductList(filterText = "") {
         productBody.appendChild(
             row
         );
+
+        // -----------------------------------------------
+        // Produkt per Doppelklick bearbeiten
+        // -----------------------------------------------
+
+        row.addEventListener(
+            "dblclick",
+            () => {
+
+                selectedProductIndex =
+                    item.index;
+
+
+                openEditProduct();
+            }
+        );
     }
 
 
@@ -4519,6 +4574,12 @@ async function saveProductFromForm() {
     renderProductList(
         searchText
     );
+
+    showNotification(
+        "success",
+        "Produkt gespeichert",
+        `${product.productName} wurde erfolgreich gespeichert.`
+    );
 }
 
 // =======================================================
@@ -4672,6 +4733,12 @@ async function deleteSelectedProduct() {
     renderProductList(
         searchText
     );
+
+    showNotification(
+        "success",
+        "Produkt gelöscht",
+        `${product.productName} wurde gelöscht.`
+    );
 }
 
 // =======================================================
@@ -4777,6 +4844,17 @@ function exportProductsJson() {
     // Temporäre Objekt-URL wieder freigeben
     URL.revokeObjectURL(
         url
+    );
+
+    // ---------------------------------------------------
+    // Erfolgreichen Export anzeigen
+    // ---------------------------------------------------
+
+    showNotification(
+        "success",
+        "JSON exportiert",
+        `${products.length} Produkte wurden erfolgreich als JSON-Datei exportiert.`,
+        5000
     );
 }
 
@@ -5103,8 +5181,10 @@ async function importProductsJson(file) {
         renderProductList();
 
 
-        alert(
-            `${products.length} Produkte wurden erfolgreich importiert.`
+        showNotification(
+            "success",
+            "JSON importiert",
+            `${products.length} Produkte wurden erfolgreich übernommen.`
         );
 
     }
@@ -5252,7 +5332,9 @@ async function resetProductsToDefaults() {
     renderProductList();
 
 
-    alert(
+    showNotification(
+        "success",
+        "Standard wiederhergestellt",
         `${products.length} Standard-Produkte wurden wiederhergestellt.`
     );
 }
@@ -5361,6 +5443,324 @@ async function finalizeProductMerge(
         return false;
     }
 }
+
+
+
+// =======================================================
+// Toast-Benachrichtigung anzeigen
+// =======================================================
+
+function showNotification(
+    type,
+    title,
+    message,
+    duration = 4000
+) {
+
+    const container =
+        document.getElementById(
+            "toastContainer"
+        );
+
+
+    if (!container) {
+        return;
+    }
+
+    // ---------------------------------------------------
+// Toast in den aktuell geöffneten Dialog verschieben
+// ---------------------------------------------------
+
+const openDialogs =
+    document.querySelectorAll(
+        "dialog[open]"
+    );
+
+
+const activeDialog =
+    openDialogs.length > 0
+        ? openDialogs[
+            openDialogs.length - 1
+        ]
+        : null;
+
+
+if (activeDialog) {
+
+    if (
+        container.parentElement !== activeDialog
+    ) {
+
+        if (
+            container.matches(
+                ":popover-open"
+            )
+        ) {
+
+            container.hidePopover();
+        }
+
+
+                activeDialog.appendChild(
+                    container
+                );
+            }
+        }
+        else {
+
+            if (
+                container.parentElement !== document.body
+            ) {
+
+                if (
+                    container.matches(
+                        ":popover-open"
+                    )
+                ) {
+
+                    container.hidePopover();
+                }
+
+
+                document.body.appendChild(
+                    container
+                );
+            }
+        }
+
+    if (
+    !container.matches(
+        ":popover-open"
+        )
+    ) {
+
+        container.showPopover();
+    }
+
+
+    const validTypes = [
+        "success",
+        "warning",
+        "error",
+        "info"
+    ];
+
+
+    if (
+        !validTypes.includes(type)
+    ) {
+        type = "info";
+    }
+
+
+    const icons = {
+        success: "✓",
+        warning: "!",
+        error: "×",
+        info: "i"
+    };
+
+
+    const toast =
+        document.createElement(
+            "div"
+        );
+
+
+    toast.className =
+        `toast ${type}`;
+
+
+    const icon =
+        document.createElement(
+            "div"
+        );
+
+    icon.className =
+        "toast-icon";
+
+    icon.textContent =
+        icons[type];
+
+
+    const content =
+        document.createElement(
+            "div"
+        );
+
+    content.className =
+        "toast-content";
+
+
+    const titleElement =
+        document.createElement(
+            "div"
+        );
+
+    titleElement.className =
+        "toast-title";
+
+    titleElement.textContent =
+        title;
+
+
+    const messageElement =
+        document.createElement(
+            "div"
+        );
+
+    messageElement.className =
+        "toast-message";
+
+    messageElement.textContent =
+        message;
+
+
+    content.appendChild(
+        titleElement
+    );
+
+    content.appendChild(
+        messageElement
+    );
+
+
+    const closeButton =
+        document.createElement(
+            "button"
+        );
+
+    closeButton.type =
+        "button";
+
+    closeButton.className =
+        "toast-close";
+
+    closeButton.setAttribute(
+        "aria-label",
+        "Meldung schließen"
+    );
+
+    closeButton.textContent =
+        "×";
+
+
+    toast.appendChild(
+        icon
+    );
+
+    toast.appendChild(
+        content
+    );
+
+    toast.appendChild(
+        closeButton
+    );
+
+
+    container.appendChild(
+        toast
+    );
+
+
+    requestAnimationFrame(
+        () => {
+
+            toast.classList.add(
+                "visible"
+            );
+        }
+    );
+
+
+    let removeTimer = null;
+
+
+    function removeToast() {
+
+        if (
+            toast.classList.contains(
+                "removing"
+            )
+        ) {
+            return;
+        }
+
+
+        toast.classList.add(
+            "removing"
+        );
+
+
+        window.setTimeout(
+            () => {
+
+                toast.remove();
+            },
+            200
+        );
+    }
+
+
+    closeButton.addEventListener(
+        "click",
+        removeToast
+    );
+
+
+    if (
+        duration > 0
+    ) {
+
+        removeTimer =
+            window.setTimeout(
+                removeToast,
+                duration
+            );
+    }
+
+
+    toast.addEventListener(
+        "mouseenter",
+        () => {
+
+            if (
+                removeTimer !== null
+            ) {
+
+                clearTimeout(
+                    removeTimer
+                );
+
+                removeTimer =
+                    null;
+            }
+        }
+    );
+
+
+    toast.addEventListener(
+        "mouseleave",
+        () => {
+
+            if (
+                duration > 0 &&
+                removeTimer === null
+            ) {
+
+                removeTimer =
+                    window.setTimeout(
+                        removeToast,
+                        duration
+                    );
+            }
+        }
+    );
+}
+
+
+window.showNotification =
+    showNotification;
 
 
 // =======================================================

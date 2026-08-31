@@ -1678,6 +1678,158 @@ tbody tr:hover {
 
 
 /* ======================================================
+   Toast-Benachrichtigungen
+   ====================================================== */
+
+.toast-container {
+    position: fixed;
+
+    inset: auto 22px 58px auto;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    width: min(360px, calc(100vw - 44px));
+    height: auto;
+
+    margin: 0;
+    padding: 0;
+
+    border: none;
+    background: transparent;
+
+    overflow: visible;
+
+    pointer-events: auto;
+}
+
+.toast {
+    display: grid;
+    grid-template-columns: 28px 1fr 28px;
+    gap: 10px;
+    align-items: start;
+
+    padding: 14px 14px;
+
+    background: #18202a;
+    color: #ffffff;
+
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 8px;
+
+    box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.28);
+
+    pointer-events: auto;
+
+    opacity: 0;
+    transform: translateY(12px);
+
+    transition:
+        opacity 180ms ease,
+        transform 180ms ease;
+}
+
+
+.toast.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+
+.toast.removing {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+
+.toast-icon {
+    width: 24px;
+    height: 24px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    font-size: 14px;
+    font-weight: 700;
+}
+
+
+.toast.success .toast-icon {
+    background: rgba(85, 217, 139, 0.16);
+    color: #55d98b;
+}
+
+
+.toast.warning .toast-icon {
+    background: rgba(255, 159, 26, 0.16);
+    color: #ff9f1a;
+}
+
+
+.toast.error .toast-icon {
+    background: rgba(225, 76, 76, 0.16);
+    color: #e14c4c;
+}
+
+
+.toast.info .toast-icon {
+    background: rgba(101, 191, 255, 0.16);
+    color: #65bfff;
+}
+
+
+.toast-content {
+    min-width: 0;
+}
+
+
+.toast-title {
+    margin-bottom: 3px;
+
+    font-size: 14px;
+    font-weight: 700;
+}
+
+
+.toast-message {
+    color: #c7ced6;
+
+    font-size: 13px;
+    line-height: 1.45;
+
+    overflow-wrap: anywhere;
+}
+
+
+.toast-close {
+    width: 26px;
+    height: 26px;
+
+    padding: 0;
+
+    border: none;
+    background: transparent;
+
+    color: #aeb6bf;
+
+    font-size: 18px;
+    line-height: 1;
+
+    cursor: pointer;
+}
+
+
+.toast-close:hover {
+    color: #ffffff;
+}
+
+
+/* ======================================================
    Responsive
    ====================================================== */
 
