@@ -626,13 +626,50 @@ function startProductVersionListener() {
                 // Sicheren bestehenden Abgleich verwenden
                 // -------------------------------------------
 
-                if (
-                    typeof window.syncProductsFromFirestoreIfNeeded === "function"
-                ) {
+                            const hasPendingChanges =
+                typeof window.hasPendingProductChanges === "function"
+                    ? window.hasPendingProductChanges()
+                    : false;
 
-                    await window
-                        .syncProductsFromFirestoreIfNeeded();
-                }
+
+            const hasLocalChanges =
+                typeof window.hasLocalProductChangesComparedToBaseline === "function"
+                    ? window.hasLocalProductChangesComparedToBaseline()
+                    : false;
+
+
+            // ---------------------------------------------------
+            // Lokale Änderungen haben Vorrang.
+            // In diesem Fall darf der Live-Listener keinen
+            // normalen Cloud-Download starten.
+            // ---------------------------------------------------
+
+            if (
+                hasPendingChanges ||
+                hasLocalChanges
+            ) {
+
+                console.log(
+                    "Firestore Live-Änderung erkannt, aber lokale Änderungen sind vorhanden. "
+                    + "Automatischer Cloud-Abgleich wird übersprungen."
+                );
+
+                return;
+            }
+
+
+            // ---------------------------------------------------
+            // Keine lokalen Änderungen:
+            // normalen sicheren Cloud-Abgleich starten
+            // ---------------------------------------------------
+
+            if (
+                typeof window.syncProductsFromFirestoreIfNeeded === "function"
+            ) {
+
+                await window
+                    .syncProductsFromFirestoreIfNeeded();
+            }
             },
             error => {
 
