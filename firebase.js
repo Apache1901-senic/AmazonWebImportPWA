@@ -21,7 +21,8 @@ import {
     setDoc,
     onSnapshot,
     serverTimestamp,
-    writeBatch
+    writeBatch,
+    runTransaction
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 
@@ -873,33 +874,62 @@ async function saveProductListToFirestore(
     try {
 
         // ---------------------------------------------------
-        // Aktuelle zentrale Version lesen
-        // ---------------------------------------------------
+// Metadata-Dokument
+// ---------------------------------------------------
 
-        const metadataReference =
-            doc(
-                firestoreDb,
-                "metadata",
-                "products"
+const metadataReference =
+    doc(
+        firestoreDb,
+        "metadata",
+        "products"
+    );
+
+
+// ---------------------------------------------------
+// Neue Datenversion atomar reservieren
+// ---------------------------------------------------
+
+const newVersion =
+    await runTransaction(
+        firestoreDb,
+        async transaction => {
+
+            const metadataSnapshot =
+                await transaction.get(
+                    metadataReference
+                );
+
+
+            const currentVersion =
+                metadataSnapshot.exists()
+                    ? Number(
+                        metadataSnapshot.data().version
+                    ) || 0
+                    : 0;
+
+
+            const nextVersion =
+                currentVersion + 1;
+
+
+            transaction.set(
+                metadataReference,
+                {
+                    version:
+                        nextVersion,
+
+                    updatedAt:
+                        serverTimestamp()
+                },
+                {
+                    merge: true
+                }
             );
 
 
-        const metadataSnapshot =
-            await getDoc(
-                metadataReference
-            );
-
-
-        const currentVersion =
-            metadataSnapshot.exists()
-                ? Number(
-                    metadataSnapshot.data().version
-                ) || 0
-                : 0;
-
-
-        const newVersion =
-            currentVersion + 1;
+            return nextVersion;
+        }
+    );
 
 
         // ---------------------------------------------------
@@ -999,7 +1029,7 @@ async function saveProductListToFirestore(
         // ---------------------------------------------------
         // Neue Datenversion im selben Vorgang speichern
         // ---------------------------------------------------
-
+/*
         batch.set(
             metadataReference,
             {
@@ -1013,7 +1043,7 @@ async function saveProductListToFirestore(
                 merge: true
             }
         );
-
+*/
 
         await batch.commit();
 
