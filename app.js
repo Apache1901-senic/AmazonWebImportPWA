@@ -373,41 +373,42 @@ window.hasPendingProductChanges =
 
     function markProductChangesPending() {
 
-        const wasAlreadyPending =
-            hasPendingProductChanges();
+    const wasAlreadyPending =
+        hasPendingProductChanges();
 
 
-        localStorage.setItem(
-            PRODUCT_PENDING_STORAGE_KEY,
-            "true"
+    localStorage.setItem(
+        PRODUCT_PENDING_STORAGE_KEY,
+        "true"
+    );
+
+
+    updateDataSyncStatus();
+
+
+    console.log(
+        "Lokale Produktänderungen warten auf Synchronisation."
+    );
+
+
+    // ---------------------------------------------------
+    // Offline-Hinweis nur bei tatsächlichem Offline-Betrieb
+    // ---------------------------------------------------
+
+    if (
+        !navigator.onLine &&
+        !wasAlreadyPending &&
+        typeof showNotification === "function"
+    ) {
+
+        showNotification(
+            "warning",
+            "Offline gespeichert",
+            "Die Änderung wurde lokal gespeichert und wird synchronisiert, sobald die Verbindung wieder verfügbar ist.",
+            5000
         );
-
-
-        updateDataSyncStatus();
-
-
-        console.log(
-            "Lokale Produktänderungen warten auf Synchronisation."
-        );
-
-
-        // ---------------------------------------------------
-        // Benutzerhinweis nur beim ersten Pending-Zustand
-        // ---------------------------------------------------
-
-        if (
-            !wasAlreadyPending &&
-            typeof showNotification === "function"
-        ) {
-
-            showNotification(
-                "warning",
-                "Offline gespeichert",
-                "Die Änderung wurde lokal gespeichert und wird synchronisiert, sobald die Verbindung wieder verfügbar ist.",
-                5000
-            );
-        }
     }
+}
 
 
 
