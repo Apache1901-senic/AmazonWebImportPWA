@@ -175,6 +175,105 @@ dialog h2 {
 
 
 /* ======================================================
+   Firebase Login
+   ====================================================== */
+
+.firebase-login-dialog {
+    width: min(420px, 90vw);
+
+    padding: 0;
+
+    overflow: hidden;
+}
+
+.firebase-login-header {
+    padding: 20px 24px;
+
+    background: #18232f;
+    color: #ffffff;
+}
+
+
+.firebase-login-header h2 {
+    margin: 0;
+
+    color: #ffffff;
+}
+
+
+.firebase-login-content {
+    padding: 24px;
+}
+
+.firebase-login-info {
+    margin:
+        0
+        0
+        20px
+        0;
+
+    color: #5f6872;
+
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+
+.firebase-login-field {
+    display: flex;
+    flex-direction: column;
+
+    gap: 6px;
+
+    margin-bottom: 16px;
+}
+
+
+.firebase-login-field label {
+    font-size: 13px;
+    font-weight: 600;
+
+    color: #39424c;
+}
+
+
+.firebase-login-field input {
+    width: 100%;
+
+    box-sizing: border-box;
+
+    padding: 10px 12px;
+
+    border: 1px solid #c8cfd6;
+    border-radius: 6px;
+
+    font-family: inherit;
+    font-size: 14px;
+
+    outline: none;
+}
+
+
+.firebase-login-field input:focus {
+    border-color: #65bfff;
+
+    box-shadow:
+        0 0 0 3px rgba(101, 191, 255, 0.15);
+}
+
+
+.firebase-login-error {
+    margin-top: 4px;
+    margin-bottom: 16px;
+
+    color: #c93f3f;
+
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+
+/* ======================================================
    Karten
    ====================================================== */
 

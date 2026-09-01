@@ -6260,6 +6260,351 @@ window.setServiceWorkerReady =
 // Events
 // =======================================================
 
+// =======================================================
+// Firebase-Login
+// =======================================================
+
+const firebaseLoginDialog =
+    document.getElementById(
+        "firebaseLoginDialog"
+    );
+
+
+const firebaseLoginEmail =
+    document.getElementById(
+        "firebaseLoginEmail"
+    );
+
+
+const firebaseLoginPassword =
+    document.getElementById(
+        "firebaseLoginPassword"
+    );
+
+
+const firebaseLoginSubmit =
+    document.getElementById(
+        "firebaseLoginSubmit"
+    );
+
+
+const firebaseLoginError =
+    document.getElementById(
+        "firebaseLoginError"
+    );
+
+
+async function submitFirebaseLogin() {
+
+    const email =
+        firebaseLoginEmail
+            .value
+            .trim();
+
+
+    const password =
+        firebaseLoginPassword
+            .value;
+
+
+    // ---------------------------------------------------
+    // Eingaben prüfen
+    // ---------------------------------------------------
+
+    if (
+        !email ||
+        !password
+    ) {
+
+        firebaseLoginError.textContent =
+            "Bitte E-Mail-Adresse und Passwort eingeben.";
+
+        firebaseLoginError.hidden =
+            false;
+
+
+        return;
+    }
+
+
+    // ---------------------------------------------------
+    // Fehlermeldung zurücksetzen
+    // ---------------------------------------------------
+
+    firebaseLoginError.hidden =
+        true;
+
+    firebaseLoginError.textContent =
+        "";
+
+
+    // ---------------------------------------------------
+    // Button während der Anmeldung sperren
+    // ---------------------------------------------------
+
+    firebaseLoginSubmit.disabled =
+        true;
+
+    firebaseLoginSubmit.textContent =
+        "Anmeldung läuft…";
+
+
+    try {
+
+        if (
+            typeof window.firebaseLogin !== "function"
+        ) {
+
+            firebaseLoginError.textContent =
+                "Firebase-Anmeldung ist momentan nicht verfügbar.";
+
+            firebaseLoginError.hidden =
+                false;
+
+
+            return;
+        }
+
+
+        const result =
+            await window.firebaseLogin(
+                email,
+                password
+            );
+
+
+        if (
+            !result ||
+            !result.success
+        ) {
+
+            let message =
+                "Die Anmeldung ist fehlgeschlagen.";
+
+
+            const errorCode =
+                result?.error?.code;
+
+
+            if (
+                errorCode === "auth/invalid-credential" ||
+                errorCode === "auth/wrong-password" ||
+                errorCode === "auth/user-not-found"
+            ) {
+
+                message =
+                    "E-Mail-Adresse oder Passwort ist nicht korrekt.";
+            }
+            else if (
+                errorCode === "auth/too-many-requests"
+            ) {
+
+                message =
+                    "Zu viele Anmeldeversuche. Bitte später erneut versuchen.";
+            }
+            else if (
+                errorCode === "auth/network-request-failed"
+            ) {
+
+                message =
+                    "Keine Verbindung zu Firebase möglich.";
+            }
+
+
+            firebaseLoginError.textContent =
+                message;
+
+            firebaseLoginError.hidden =
+                false;
+
+
+            return;
+        }
+
+
+        // ---------------------------------------------------
+        // Anmeldung erfolgreich
+        // ---------------------------------------------------
+
+        firebaseLoginPassword.value =
+            "";
+
+
+        firebaseLoginDialog.close();
+
+
+        showNotification(
+            "success",
+            "Anmeldung erfolgreich",
+            "Die Verbindung zu Firestore wurde hergestellt.",
+            4000
+        );
+
+    }
+    finally {
+
+        firebaseLoginSubmit.disabled =
+            false;
+
+        firebaseLoginSubmit.textContent =
+            "Anmelden";
+    }
+}
+
+
+firebaseLoginSubmit.addEventListener(
+    "click",
+    submitFirebaseLogin
+);
+
+
+firebaseLoginPassword.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key === "Enter"
+        ) {
+
+            event.preventDefault();
+
+            submitFirebaseLogin();
+        }
+    }
+);
+
+// =======================================================
+// Firebase-Login-Dialog anzeigen
+// =======================================================
+
+function showFirebaseLoginDialog() {
+
+    const dialog =
+        document.getElementById(
+            "firebaseLoginDialog"
+        );
+
+
+    const email =
+        document.getElementById(
+            "firebaseLoginEmail"
+        );
+
+
+    const password =
+        document.getElementById(
+            "firebaseLoginPassword"
+        );
+
+
+    const error =
+        document.getElementById(
+            "firebaseLoginError"
+        );
+
+
+    if (!dialog) {
+        return;
+    }
+
+
+    email.value = "";
+    password.value = "";
+
+    error.hidden = true;
+    error.textContent = "";
+
+
+    if (!dialog.open) {
+
+        dialog.showModal();
+    }
+
+
+    window.setTimeout(
+        () => {
+
+            email.focus();
+        },
+        0
+    );
+}
+
+
+window.showFirebaseLoginDialog =
+    showFirebaseLoginDialog;
+
+
+
+// =======================================================
+// Firebase abmelden
+// =======================================================
+
+document
+    .getElementById(
+        "menuFirebaseLogout"
+    )
+    .addEventListener(
+        "click",
+        async () => {
+
+            const confirmed =
+                confirm(
+                    "Möchtest du Firebase wirklich abmelden?\n\n"
+                    + "Die lokal gespeicherten Produktdaten bleiben erhalten."
+                );
+
+
+            if (!confirmed) {
+                return;
+            }
+
+
+            if (
+                typeof window.firebaseLogout !== "function"
+            ) {
+
+                showNotification(
+                    "error",
+                    "Abmeldung nicht möglich",
+                    "Firebase ist momentan nicht verfügbar."
+                );
+
+                return;
+            }
+
+
+            const result =
+                await window.firebaseLogout();
+
+
+            if (
+                !result ||
+                !result.success
+            ) {
+
+                showNotification(
+                    "error",
+                    "Abmeldung fehlgeschlagen",
+                    "Firebase konnte nicht abgemeldet werden."
+                );
+
+                return;
+            }
+
+
+            updateFirestoreStatus(
+                "disconnected"
+            );
+
+
+            showNotification(
+                "info",
+                "Firebase abgemeldet",
+                "Die lokalen Produktdaten bleiben weiterhin verfügbar."
+            );
+        }
+    );
 
 // -------------------------------------------------------
 // Dateiauswahl

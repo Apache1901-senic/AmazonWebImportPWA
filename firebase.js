@@ -206,6 +206,10 @@ async function firebaseLogin(
 // Benutzer abmelden
 // =======================================================
 
+// =======================================================
+// Firebase abmelden
+// =======================================================
+
 async function firebaseLogout() {
 
     try {
@@ -216,11 +220,13 @@ async function firebaseLogout() {
 
 
         console.log(
-            "Firebase-Abmeldung erfolgreich."
+            "Firebase-Benutzer wurde abgemeldet."
         );
 
 
-        return true;
+        return {
+            success: true
+        };
 
     }
     catch (error) {
@@ -231,9 +237,16 @@ async function firebaseLogout() {
         );
 
 
-        return false;
+        return {
+            success: false,
+            error
+        };
     }
 }
+
+
+window.firebaseLogout =
+    firebaseLogout;
 
 
 // =======================================================
@@ -309,6 +322,14 @@ onAuthStateChanged(
             console.log(
                 "Kein Firebase-Benutzer angemeldet."
             );
+
+
+            if (
+                typeof window.showFirebaseLoginDialog === "function"
+            ) {
+
+                window.showFirebaseLoginDialog();
+            }
         }
     }
 );

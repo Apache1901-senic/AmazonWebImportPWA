@@ -100,6 +100,13 @@
                     Diagnose-Center
                 </button>
 
+                 <button
+                    type="button"
+                    id="menuFirebaseLogout"
+                >
+                    Firebase abmelden
+                </button>
+
             </div>
 
         </div>
@@ -1335,6 +1342,86 @@
                 Schließen
             </button>
         </div>
+    </div>
+
+</dialog>
+
+<!-- ===================================================
+     Firebase Login
+=================================================== -->
+
+<dialog
+    id="firebaseLoginDialog"
+    class="firebase-login-dialog"
+>
+
+    <div class="firebase-login-header">
+
+        <h2>
+            Anmeldung
+        </h2>
+
+    </div>
+
+
+    <div class="firebase-login-content">
+
+        <p class="firebase-login-info">
+            Bitte anmelden, um die zentralen Produktdaten zu verwenden.
+        </p>
+
+
+    <div class="firebase-login-field">
+
+        <label for="firebaseLoginEmail">
+            E-Mail
+        </label>
+
+        <input
+            type="email"
+            id="firebaseLoginEmail"
+            autocomplete="username"
+        >
+
+    </div>
+
+
+    <div class="firebase-login-field">
+
+        <label for="firebaseLoginPassword">
+            Passwort
+        </label>
+
+        <input
+            type="password"
+            id="firebaseLoginPassword"
+            autocomplete="current-password"
+        >
+
+    </div>
+
+
+    <div
+        id="firebaseLoginError"
+        class="firebase-login-error"
+        hidden
+    ></div>
+
+
+        <div class="dialog-actions">
+            <div class="dialog-button-bar">
+
+                <button
+                    type="button"
+                    id="firebaseLoginSubmit"
+                    class="action-button"
+                >
+                    Anmelden
+                </button>
+
+            </div>
+        </div>
+
     </div>
 
 </dialog>
