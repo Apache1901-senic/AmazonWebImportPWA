@@ -645,9 +645,23 @@ window.hasPendingProductChanges =
 
         saveProductsToStorage();
 
+
         setLocalProductDataVersion(
             cloudVersion
         );
+
+
+        // ---------------------------------------------------
+        // Erfolgreich übernommenen Cloud-Stand als neue
+        // Vergleichsbasis speichern
+        // ---------------------------------------------------
+
+        saveProductBaseline(
+            products
+        );
+
+
+        clearPendingProductChanges();
 
 
         // ---------------------------------------------------
