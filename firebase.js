@@ -19,6 +19,7 @@ import {
     doc,
     getDoc,
     setDoc,
+    onSnapshot,
     serverTimestamp,
     writeBatch
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -315,10 +316,11 @@ onAuthStateChanged(
                 }
               
             }
+            startProductVersionListener();
 
         }
         else {
-
+            stopProductVersionListener();
             console.log(
                 "Kein Firebase-Benutzer angemeldet."
             );
@@ -334,7 +336,23 @@ onAuthStateChanged(
     }
 );
 
+function stopProductVersionListener() {
 
+    if (
+        unsubscribeProductVersionListener !== null
+    ) {
+
+        unsubscribeProductVersionListener();
+
+        unsubscribeProductVersionListener =
+            null;
+
+
+        console.log(
+            "Firestore Live-Synchronisation beendet."
+        );
+    }
+} 
 // =======================================================
 // Funktionen global bereitstellen
 // =======================================================
@@ -549,7 +567,87 @@ async function getProductDataVersion() {
     }
 }
 
+// =======================================================
+// Produktdaten-Version in Echtzeit überwachen
+// =======================================================
 
+let unsubscribeProductVersionListener =
+    null;
+
+
+function startProductVersionListener() {
+
+    // ---------------------------------------------------
+    // Bereits laufenden Listener nicht doppelt starten
+    // ---------------------------------------------------
+
+    if (
+        unsubscribeProductVersionListener !== null
+    ) {
+        return;
+    }
+
+
+    const versionDocument =
+        doc(
+            firestoreDb,
+            "metadata",
+            "products"
+        );
+
+
+    unsubscribeProductVersionListener =
+        onSnapshot(
+            versionDocument,
+            async documentSnapshot => {
+
+                if (
+                    !documentSnapshot.exists()
+                ) {
+                    return;
+                }
+
+
+                const data =
+                    documentSnapshot.data();
+
+
+                const cloudVersion =
+                    data.version;
+
+
+                console.log(
+                    "Firestore Live-Version:",
+                    cloudVersion
+                );
+
+
+                // -------------------------------------------
+                // Sicheren bestehenden Abgleich verwenden
+                // -------------------------------------------
+
+                if (
+                    typeof window.syncProductsFromFirestoreIfNeeded === "function"
+                ) {
+
+                    await window
+                        .syncProductsFromFirestoreIfNeeded();
+                }
+            },
+            error => {
+
+                console.warn(
+                    "Firestore Live-Synchronisation nicht verfügbar:",
+                    error
+                );
+            }
+        );
+
+
+    console.log(
+        "Firestore Live-Synchronisation gestartet."
+    );
+}
 
 // =======================================================
 // Produktliste nach Firestore übertragen
