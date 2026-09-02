@@ -19,6 +19,7 @@ import {
     doc,
     getDoc,
     setDoc,
+    getDocsFromServer,
     onSnapshot,
     serverTimestamp,
     runTransaction
@@ -784,17 +785,35 @@ async function uploadProductsToFirestore(
 // Produktliste aus Firestore laden
 // =======================================================
 
-async function loadProductsFromFirestore() {
+async function loadProductsFromFirestore(
+    forceServer = false
+) {
 
     try {
 
-        const snapshot =
-            await getDocs(
-                collection(
-                    firestoreDb,
-                    "products"
-                )
+        const productsCollection =
+            collection(
+                firestoreDb,
+                "products"
             );
+
+
+        // ---------------------------------------------------
+        // Normalbetrieb:
+        // Firestore darf Cache verwenden.
+        //
+        // Konflikt-/Reconnect-Prüfung:
+        // echten aktuellen Serverstand erzwingen.
+        // ---------------------------------------------------
+
+        const snapshot =
+            forceServer
+                ? await getDocsFromServer(
+                    productsCollection
+                )
+                : await getDocs(
+                    productsCollection
+                );
 
 
         const products = [];
@@ -814,6 +833,15 @@ async function loadProductsFromFirestore() {
             `${products.length} Produkte aus Firestore geladen.`
         );
 
+
+        if (forceServer) {
+
+            console.log(
+                "Produktdaten wurden direkt vom Firestore-Server geladen."
+            );
+        }
+
+
         console.table(
             products
         );
@@ -825,7 +853,9 @@ async function loadProductsFromFirestore() {
     catch (error) {
 
         console.error(
-            "Produktliste konnte nicht aus Firestore geladen werden:",
+            forceServer
+                ? "Produktliste konnte nicht direkt vom Firestore-Server geladen werden:"
+                : "Produktliste konnte nicht aus Firestore geladen werden:",
             error
         );
 

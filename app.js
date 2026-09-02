@@ -1747,7 +1747,9 @@ async function reconcilePendingProductChanges() {
         // ---------------------------------------------------
 
         const cloudProducts =
-            await window.loadProductsFromFirestore();
+            await window.loadProductsFromFirestore(
+                true
+            );
 
 
         if (
