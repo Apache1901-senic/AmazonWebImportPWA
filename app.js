@@ -1809,17 +1809,18 @@ for (
     ) {
 
         console.log(
-            "ASIN:",
-            asin,
+            "KONFLIKT-SNAPSHOT:",
             {
+                asin: asin,
+
                 baseline:
-                    baselineProduct,
+                    baselineProduct?.colourVariant ?? null,
 
                 lokal:
-                    localProduct,
+                    localProduct?.colourVariant ?? null,
 
                 cloud:
-                    cloudProduct
+                    cloudProduct?.colourVariant ?? null
             }
         );
     }
