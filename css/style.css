@@ -1031,6 +1031,53 @@ tbody tr:hover {
 }
 
 
+/* ======================================================
+   Sicherungsabfrage
+   ====================================================== */
+
+.backup-confirm-dialog {
+    width: min(560px, 90vw);
+
+    padding: 0;
+
+    overflow: hidden;
+}
+
+
+.backup-confirm-dialog .dialog-header {
+    padding: 20px 24px;
+
+    background: #18232f;
+    color: #ffffff;
+}
+
+
+.backup-confirm-dialog .dialog-header h2 {
+    margin: 0;
+    color: #ffffff;
+}
+
+
+.backup-confirm-content {
+    padding: 22px 24px 8px 24px;
+
+    color: #39424c;
+
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+
+.backup-confirm-content p:first-child {
+    margin-top: 0;
+}
+
+
+.backup-confirm-content p:last-child {
+    margin-bottom: 0;
+}
+
+
 @media (max-width: 650px) {
 
     .product-conflict-columns {

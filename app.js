@@ -5085,19 +5085,25 @@ async function importProductsJson(file) {
 
 
         // ---------------------------------------------------
-        // Sicherheitsabfrage
+        // Sicherung vor dem Import anbieten
         // ---------------------------------------------------
 
-        const confirmed =
-            confirm(
-                "Die aktuelle Produktliste wird vollständig ersetzt.\n\n"
-                + `Neue Produktliste: ${importedData.length} Produkte\n\n`
-                + "Möchtest du fortfahren?"
-            );
+        const backupDecision =
+            await askForProductBackup();
 
 
-        if (!confirmed) {
+        if (
+            backupDecision === "cancel"
+        ) {
             return;
+        }
+
+
+        if (
+            backupDecision === "backup"
+        ) {
+
+            exportProductsJson();
         }
 
 
@@ -6203,6 +6209,134 @@ function updateSystemStatus() {
             "status-light offline";
     }
 }
+
+
+// =======================================================
+// Sicherung vor größeren Änderungen anbieten
+// =======================================================
+
+function askForProductBackup() {
+
+    return new Promise(
+        resolve => {
+
+            const dialog =
+                document.getElementById(
+                    "backupConfirmDialog"
+                );
+
+
+            const cancelButton =
+                document.getElementById(
+                    "backupConfirmCancel"
+                );
+
+
+            const withoutButton =
+                document.getElementById(
+                    "backupConfirmWithout"
+                );
+
+
+            const createButton =
+                document.getElementById(
+                    "backupConfirmCreate"
+                );
+
+
+            if (
+                !dialog ||
+                !cancelButton ||
+                !withoutButton ||
+                !createButton
+            ) {
+
+                resolve(
+                    "cancel"
+                );
+
+                return;
+            }
+
+
+            function cleanup() {
+
+                cancelButton.removeEventListener(
+                    "click",
+                    cancel
+                );
+
+                withoutButton.removeEventListener(
+                    "click",
+                    continueWithout
+                );
+
+                createButton.removeEventListener(
+                    "click",
+                    createBackup
+                );
+            }
+
+
+            function cancel() {
+
+                cleanup();
+
+                dialog.close();
+
+                resolve(
+                    "cancel"
+                );
+            }
+
+
+            function continueWithout() {
+
+                cleanup();
+
+                dialog.close();
+
+                resolve(
+                    "continue"
+                );
+            }
+
+
+            function createBackup() {
+
+                cleanup();
+
+                dialog.close();
+
+                resolve(
+                    "backup"
+                );
+            }
+
+
+            cancelButton.addEventListener(
+                "click",
+                cancel
+            );
+
+
+            withoutButton.addEventListener(
+                "click",
+                continueWithout
+            );
+
+
+            createButton.addEventListener(
+                "click",
+                createBackup
+            );
+
+
+            dialog.showModal();
+        }
+    );
+}
+
 
 
 // =======================================================

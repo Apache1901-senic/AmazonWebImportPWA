@@ -454,6 +454,69 @@
 
 </dialog>
 
+<!-- ===================================================
+     Sicherung vor größeren Änderungen
+=================================================== -->
+
+<dialog
+    id="backupConfirmDialog"
+    class="backup-confirm-dialog"
+>
+
+    <div class="dialog-header">
+        <h2>
+            Sicherung empfohlen
+        </h2>
+    </div>
+
+
+    <div class="backup-confirm-content">
+
+        <p>
+            Die aktuelle Produktliste wird durch diese Aktion
+            möglicherweise umfangreich verändert.
+        </p>
+
+        <p>
+            Möchten Sie vorher eine Sicherung der aktuellen
+            Produktdaten erstellen?
+        </p>
+
+    </div>
+
+
+    <div class="dialog-actions">
+        <div class="dialog-button-bar">
+
+            <button
+                type="button"
+                id="backupConfirmCancel"
+                class="product-action-button"
+            >
+                Abbrechen
+            </button>
+
+            <button
+                type="button"
+                id="backupConfirmWithout"
+                class="product-action-button"
+            >
+                Ohne Sicherung fortfahren
+            </button>
+
+            <button
+                type="button"
+                id="backupConfirmCreate"
+                class="action-button"
+            >
+                Sicherung erstellen
+            </button>
+
+        </div>
+    </div>
+
+</dialog>
+
     <div class="product-toolbar">
 
     <div class="product-toolbar-left">
