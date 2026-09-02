@@ -21,7 +21,6 @@ import {
     setDoc,
     onSnapshot,
     serverTimestamp,
-    writeBatch,
     runTransaction
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
@@ -874,66 +873,22 @@ async function saveProductListToFirestore(
     try {
 
         // ---------------------------------------------------
-// Metadata-Dokument
-// ---------------------------------------------------
+        // Metadata-Dokument
+        // ---------------------------------------------------
 
-const metadataReference =
-    doc(
-        firestoreDb,
-        "metadata",
-        "products"
-    );
-
-
-// ---------------------------------------------------
-// Neue Datenversion atomar reservieren
-// ---------------------------------------------------
-
-const newVersion =
-    await runTransaction(
-        firestoreDb,
-        async transaction => {
-
-            const metadataSnapshot =
-                await transaction.get(
-                    metadataReference
-                );
-
-
-            const currentVersion =
-                metadataSnapshot.exists()
-                    ? Number(
-                        metadataSnapshot.data().version
-                    ) || 0
-                    : 0;
-
-
-            const nextVersion =
-                currentVersion + 1;
-
-
-            transaction.set(
-                metadataReference,
-                {
-                    version:
-                        nextVersion,
-
-                    updatedAt:
-                        serverTimestamp()
-                },
-                {
-                    merge: true
-                }
+        const metadataReference =
+            doc(
+                firestoreDb,
+                "metadata",
+                "products"
             );
-
-
-            return nextVersion;
-        }
-    );
 
 
         // ---------------------------------------------------
         // Vorhandene Firestore-Produkte lesen
+        //
+        // Wird benötigt, damit entfernte Produkte innerhalb
+        // derselben Transaktion ebenfalls gelöscht werden.
         // ---------------------------------------------------
 
         const existingSnapshot =
@@ -954,103 +909,136 @@ const newVersion =
             );
 
 
-        const batch =
-            writeBatch(
-                firestoreDb
-            );
-
-
         // ---------------------------------------------------
-        // Produkte löschen, die lokal nicht mehr existieren
+        // Produktdaten UND Versionsnummer atomar speichern
         // ---------------------------------------------------
 
-        existingSnapshot.forEach(
-            documentSnapshot => {
+        const newVersion =
+            await runTransaction(
+                firestoreDb,
+                async transaction => {
 
-                if (
-                    !currentAsins.has(
-                        documentSnapshot.id
-                    )
-                ) {
+                    // ---------------------------------------
+                    // Aktuelle Version innerhalb der
+                    // Transaktion lesen
+                    // ---------------------------------------
 
-                    batch.delete(
-                        documentSnapshot.ref
+                    const metadataSnapshot =
+                        await transaction.get(
+                            metadataReference
+                        );
+
+
+                    const currentVersion =
+                        metadataSnapshot.exists()
+                            ? Number(
+                                metadataSnapshot
+                                    .data()
+                                    .version
+                            ) || 0
+                            : 0;
+
+
+                    const nextVersion =
+                        currentVersion + 1;
+
+
+                    // ---------------------------------------
+                    // Produkte löschen, die nicht mehr
+                    // vorhanden sind
+                    // ---------------------------------------
+
+                    existingSnapshot.forEach(
+                        documentSnapshot => {
+
+                            if (
+                                !currentAsins.has(
+                                    documentSnapshot.id
+                                )
+                            ) {
+
+                                transaction.delete(
+                                    documentSnapshot.ref
+                                );
+                            }
+                        }
                     );
-                }
-            }
-        );
 
 
-        // ---------------------------------------------------
-        // Aktuelle Produktliste schreiben
-        // ---------------------------------------------------
+                    // ---------------------------------------
+                    // Aktuelle Produktliste schreiben
+                    // ---------------------------------------
 
-        for (
-            const product
-            of productList
-        ) {
+                    for (
+                        const product
+                        of productList
+                    ) {
 
-            const productReference =
-                doc(
-                    firestoreDb,
-                    "products",
-                    product.asin
-                );
+                        const productReference =
+                            doc(
+                                firestoreDb,
+                                "products",
+                                product.asin
+                            );
 
 
-            batch.set(
-                productReference,
-                {
-                    productName:
-                        product.productName,
+                        transaction.set(
+                            productReference,
+                            {
+                                productName:
+                                    product.productName,
 
-                    colourVariant:
-                        product.colourVariant,
+                                colourVariant:
+                                    product.colourVariant,
 
-                    manufacturerCode:
-                        product.manufacturerCode,
+                                manufacturerCode:
+                                    product.manufacturerCode,
 
-                    ean:
-                        product.ean,
+                                ean:
+                                    product.ean,
 
-                    sku:
-                        product.sku,
+                                sku:
+                                    product.sku,
 
-                    pack:
-                        product.pack,
+                                pack:
+                                    product.pack,
 
-                    asin:
-                        product.asin
+                                asin:
+                                    product.asin
+                            }
+                        );
+                    }
+
+
+                    // ---------------------------------------
+                    // Versionsnummer im selben atomaren
+                    // Vorgang aktualisieren
+                    // ---------------------------------------
+
+                    transaction.set(
+                        metadataReference,
+                        {
+                            version:
+                                nextVersion,
+
+                            updatedAt:
+                                serverTimestamp()
+                        },
+                        {
+                            merge: true
+                        }
+                    );
+
+
+                    return nextVersion;
                 }
             );
-        }
-
-
-        // ---------------------------------------------------
-        // Neue Datenversion im selben Vorgang speichern
-        // ---------------------------------------------------
-/*
-        batch.set(
-            metadataReference,
-            {
-                version:
-                    newVersion,
-
-                updatedAt:
-                    serverTimestamp()
-            },
-            {
-                merge: true
-            }
-        );
-*/
-
-        await batch.commit();
 
 
         console.log(
             `${productList.length} Produkte zentral gespeichert.`
         );
+
 
         console.log(
             `Zentrale Produktdaten-Version: ${newVersion}`
