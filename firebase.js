@@ -651,9 +651,19 @@ function startProductVersionListener() {
             ) {
 
                 console.log(
-                    "Firestore Live-Änderung erkannt, aber lokale Änderungen sind vorhanden. "
-                    + "Automatischer Cloud-Abgleich wird übersprungen."
+                    "Firestore wieder erreichbar und lokale Änderungen vorhanden. "
+                    + "Sicherer Produktabgleich wird erneut gestartet."
                 );
+
+
+                if (
+                    typeof window.reconcilePendingProductChanges === "function"
+                ) {
+
+                    await window
+                        .reconcilePendingProductChanges();
+                }
+
 
                 return;
             }
