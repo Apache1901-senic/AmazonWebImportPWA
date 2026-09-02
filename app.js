@@ -1771,67 +1771,7 @@ async function reconcilePendingProductChanges() {
         // Sicheren Merge erzeugen
         // ---------------------------------------------------
 
-        // ---------------------------------------------------
-// Diagnose für Mehr-PC-Konflikte
-// ---------------------------------------------------
 
-console.log(
-    "=== RECONCILE DIAGNOSE ==="
-);
-
-
-for (
-    const localProduct of products
-) {
-
-    const asin =
-        localProduct.asin;
-
-
-    const baselineProduct =
-        baselineProducts.find(
-            product =>
-                product.asin === asin
-        );
-
-
-    const cloudProduct =
-        cloudProducts.find(
-            product =>
-                product.asin === asin
-        );
-
-
-    if (
-        JSON.stringify(baselineProduct) !==
-            JSON.stringify(localProduct)
-        ||
-        JSON.stringify(baselineProduct) !==
-            JSON.stringify(cloudProduct)
-    ) {
-
-        console.log(
-            "KONFLIKT-SNAPSHOT:",
-            {
-                asin: asin,
-
-                baseline:
-                    baselineProduct?.colourVariant ?? null,
-
-                lokal:
-                    localProduct?.colourVariant ?? null,
-
-                cloud:
-                    cloudProduct?.colourVariant ?? null
-            }
-        );
-    }
-}
-
-
-console.log(
-    "=========================="
-);
 
         const mergeResult =
             buildMergedProductState(
