@@ -1077,6 +1077,16 @@ tbody tr:hover {
     margin-bottom: 0;
 }
 
+.backup-confirm-dialog .dialog-button-bar button {
+    height: 38px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    box-sizing: border-box;
+}
+
 
 @media (max-width: 650px) {
 
