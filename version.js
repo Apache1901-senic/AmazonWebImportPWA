@@ -50,3 +50,15 @@ const APP_INFO = {
     ]
 
 };
+
+// =======================================================
+// Build-Kennung
+// =======================================================
+
+window.APP_BUILD =
+    "2026-09-02-01";
+
+
+console.log(
+    `Amazon CSV Importer – Build ${window.APP_BUILD} geladen`
+);
