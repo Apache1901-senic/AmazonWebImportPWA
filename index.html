@@ -870,9 +870,9 @@
 </dialog>
 
     <dialog
-    id="helpDialog"
-    class="help-dialog"
->
+        id="helpDialog"
+        class="help-dialog"
+    >
 
     <div class="dialog-header">
 
@@ -884,309 +884,163 @@
 
 
     <div class="help-content">
-        <section class="help-section">
-
-    <h3>
-        Typischer Arbeitsablauf
-    </h3>
-
-    <ol class="help-workflow">
-
-        <li>
-            <strong>CSV-Dateien auswählen</strong><br>
-            Amazon CSV-Dateien per Drag & Drop in den
-            Importbereich ziehen oder über
-            „Dateien auswählen“ öffnen.
-        </li>
-
-        <li>
-            <strong>Ergebnis prüfen</strong><br>
-            Kontrolliere die erkannten Dateien und achte
-            auf mögliche Warnungen oder Fehler.
-        </li>
-
-        <li>
-            <strong>Probleme kontrollieren</strong><br>
-            Falls Dateien nicht verarbeitet werden konnten,
-            findest du im Problembereich eine Beschreibung
-            der jeweiligen Ursache.
-        </li>
 
-        <li>
-            <strong>Excel-Datei erstellen</strong><br>
-            Wenn alles korrekt ist, über
-            „Excel exportieren“ die fertige
-            Arbeitsmappe erzeugen.
-        </li>
-
-    </ol>
-
-</section>
-
-        <section class="help-section">
-
-            <h3>
-                Amazon CSV-Dateien importieren
-            </h3>
+    <!-- ===================================================
+         Typischer Arbeitsablauf
+    ==================================================== -->
 
-            <p>
-                Das Programm liest SKU und Amazon-EAN aus dem
-                Dateinamen, ermittelt daraus die normale EAN
-                und ordnet die Datei den passenden
-                Produktstammdaten zu.
-            </p>
+    <section class="help-section">
 
-            <p>
-                Anschließend werden die enthaltenen T-Codes
-                verarbeitet und für den Excel-Export vorbereitet.
-            </p>
+        <h3>
+            Typischer Arbeitsablauf
+        </h3>
 
-        </section>
-
-
-        <section class="help-section">
-
-            <h3>
-                Erkannte Dateien
-            </h3>
+        <ol class="help-workflow">
 
-            <p>
-                In diesem Bereich siehst du, welche SKU,
-                Amazon-EAN, EAN und ASIN aus den Dateien
-                erkannt wurden.
-            </p>
+            <li>
+                <strong>CSV-Dateien auswählen</strong><br>
+                Amazon CSV-Dateien per Drag & Drop in den
+                Importbereich ziehen oder über
+                „Dateien auswählen“ öffnen.
+            </li>
 
-            <p>
-                Zusätzlich zeigt der Status, ob die Datei
-                eindeutig einem Produkt zugeordnet werden
-                konnte oder ob ein Problem vorliegt.
-            </p>
+            <li>
+                <strong>Ergebnis prüfen</strong><br>
+                Kontrolliere die erkannten Dateien und achte
+                auf mögliche Warnungen oder Fehler.
+            </li>
 
-        </section>
+            <li>
+                <strong>Probleme kontrollieren</strong><br>
+                Falls Dateien nicht verarbeitet werden konnten,
+                findest du im Problembereich eine Beschreibung
+                der jeweiligen Ursache.
+            </li>
 
+            <li>
+                <strong>Excel-Datei erstellen</strong><br>
+                Wenn alles korrekt ist, über
+                „Excel exportieren“ die fertige
+                Arbeitsmappe erzeugen.
+            </li>
+
+        </ol>
+
+    </section>
+
+
+    <!-- ===================================================
+         Amazon CSV-Dateien
+    ==================================================== -->
+
+    <section class="help-section">
+
+        <h3>
+            Amazon CSV-Dateien importieren
+        </h3>
 
-        <section class="help-section">
-
-            <h3>
-                Fehler und Konflikte
-            </h3>
+        <p>
+            Ziehe eine oder mehrere Amazon CSV-Dateien
+            in den Importbereich oder wähle sie über
+            „Dateien auswählen“ aus.
+        </p>
+
+        <p>
+            Das Programm liest SKU und Amazon-EAN aus dem
+            Dateinamen, ermittelt daraus die normale EAN
+            und ordnet die Datei den passenden
+            Produktstammdaten zu.
+        </p>
+
+        <p>
+            Anschließend werden die enthaltenen T-Codes
+            verarbeitet und für den Excel-Export vorbereitet.
+        </p>
+
+    </section>
+
+
+    <!-- ===================================================
+         Erkannte Dateien
+    ==================================================== -->
+
+    <section class="help-section">
+
+        <h3>
+            Erkannte Dateien
+        </h3>
+
+        <p>
+            In diesem Bereich siehst du für jede erkannte
+            CSV-Datei den Dateinamen, SKU, Amazon-EAN,
+            normale EAN, ASIN, Anzahl der T-Codes und
+            den aktuellen Status.
+        </p>
+
+        <p>
+            Dateien, die eindeutig einem Produkt zugeordnet
+            werden konnten, erhalten den Status „OK“.
+            Problematische Dateien werden entsprechend
+            gekennzeichnet und nicht in den eigentlichen
+            Output übernommen.
+        </p>
+
+    </section>
 
-            <p>
-                Bei Problemen wird eine verständliche
-                Diagnose angezeigt.
-            </p>
 
-            <ul>
-                <li>
-                    <strong>SKU/EAN-Konflikt:</strong>
-                    SKU und EAN gehören laut Stammdaten
-                    zu unterschiedlichen Produkten.
-                </li>
+    <!-- ===================================================
+         Fehler
+    ==================================================== -->
 
-                <li>
-                    <strong>Nicht gefunden:</strong>
-                    SKU und/oder EAN konnten keinem
-                    Produkt zugeordnet werden.
-                </li>
+    <section class="help-section">
 
-                <li>
-                    <strong>Keine T-Codes:</strong>
-                    Die CSV-Datei enthält keine
-                    verwertbaren T-Codes.
-                </li>
+        <h3>
+            Fehler bei CSV-Dateien
+        </h3>
 
-                <li>
-                    <strong>Dateiname nicht erkannt:</strong>
-                    Der Dateiname entspricht nicht dem
-                    erwarteten Amazon-Dateiformat.
-                </li>
-            </ul>
+        <p>
+            Problematische Dateien werden nicht einfach
+            übersprungen. Die Anwendung zeigt eine Diagnose
+            mit Hinweisen zur Ursache an.
+        </p>
 
-        </section>
+        <ul>
 
+            <li>
+                <strong>SKU/EAN-Konflikt:</strong>
+                SKU und EAN sind beide bekannt, gehören laut
+                Produktstammdaten aber zu unterschiedlichen
+                Produkten. Die Datei wird nicht importiert.
+            </li>
 
-        <section class="help-section">
+            <li>
+                <strong>Nicht gefunden:</strong>
+                Die erkannte SKU und/oder EAN konnte keinem
+                Produkt in den Stammdaten zugeordnet werden.
+            </li>
 
-            <h3>
-                Excel exportieren
-            </h3>
+            <li>
+                <strong>Keine T-Codes:</strong>
+                Die CSV-Datei enthält keine verwertbaren
+                T-Codes und wird deshalb nicht importiert.
+            </li>
 
-            <p>
-                Nach einem erfolgreichen Import kann über
-                „Excel exportieren“ eine XLSX-Datei erzeugt
-                werden.
-            </p>
+            <li>
+                <strong>Dateiname nicht erkannt:</strong>
+                SKU und Amazon-EAN konnten aus dem Dateinamen
+                nicht zuverlässig erkannt werden. Bitte prüfe,
+                ob der Dateiname dem üblichen Amazon-Schema
+                entspricht.
+            </li>
 
-            <p>
-                Die Arbeitsmappe enthält das Blatt
-                <strong>Output</strong> mit den erzeugten
-                Daten sowie das Blatt
-                <strong>Summary</strong> mit Statistik,
-                Problemen und Diagnosen.
-            </p>
+        </ul>
 
-        </section>
+    </section>
 
 
-        <section class="help-section">
-
-            <h3>
-                Produktliste
-            </h3>
-
-            <p>
-                Unter „Daten → Produktliste“ können
-                Produktstammdaten gesucht, neu angelegt,
-                bearbeitet und gelöscht werden.
-            </p>
-
-            <p>
-                ASIN, SKU und EAN werden dabei geprüft.
-                Doppelte Werte werden nicht zugelassen.
-            </p>
-
-        </section>
-
-
-        <section class="help-section">
-
-            <h3>
-                Produktdaten sichern
-            </h3>
-
-            <p>
-                Die Produktliste kann als JSON-Datei
-                exportiert und später wieder importiert
-                werden.
-            </p>
-
-            <p>
-                Der JSON-Import ersetzt die aktuell
-                gespeicherte Produktliste vollständig.
-                Vor dem Import wird deshalb eine
-                Sicherheitsabfrage angezeigt.
-            </p>
-
-        </section>
-
-
-        <section class="help-section">
-
-            <h3>
-                Diagnose-Center
-            </h3>
-
-            <p>
-                Unter „System → Diagnose-Center“ kann
-                eine Selbstdiagnose gestartet werden.
-            </p>
-
-            <p>
-                Dabei werden unter anderem Produktdaten,
-                Excel-Engine, localStorage, Service Worker,
-                Offline-Cache, Browser und PWA-Umgebung
-                geprüft.
-            </p>
-
-        </section>
-
-
-       <section class="help-section">
-        
-
-    <h3>
-        Amazon CSV-Dateien importieren
-    </h3>
-
-    <p>
-        Ziehe eine oder mehrere Amazon CSV-Dateien
-        in den Importbereich oder wähle sie über
-        „Dateien auswählen“ aus.
-    </p>
-
-    <p>
-        Das Programm liest SKU und Amazon-EAN aus dem
-        Dateinamen, ermittelt daraus die normale EAN
-        und ordnet die Datei den passenden
-        Produktstammdaten zu.
-    </p>
-
-    <p>
-        Anschließend werden die enthaltenen T-Codes
-        verarbeitet und für den Excel-Export vorbereitet.
-    </p>
-
-</section>
-
-
-<section class="help-section">
-
-    <h3>
-        Erkannte Dateien
-    </h3>
-
-    <p>
-        In diesem Bereich siehst du für jede erkannte
-        CSV-Datei den Dateinamen, SKU, Amazon-EAN,
-        normale EAN, ASIN, Anzahl der T-Codes und
-        den aktuellen Status.
-    </p>
-
-    <p>
-        Dateien, die eindeutig einem Produkt zugeordnet
-        werden konnten, erhalten den Status „OK“.
-        Problematische Dateien werden farblich markiert
-        und nicht in den eigentlichen Output übernommen.
-    </p>
-
-</section>
-
-
-<section class="help-section">
-
-    <h3>
-        Fehler und Konflikte
-    </h3>
-
-    <p>
-        Problematische Dateien werden nicht einfach
-        übersprungen. Das Programm erzeugt eine
-        verständliche Diagnose mit Hinweisen zur Ursache.
-    </p>
-
-    <ul>
-
-        <li>
-            <strong>SKU/EAN-Konflikt:</strong>
-            SKU und EAN sind beide bekannt, gehören laut
-            Produktstammdaten aber zu unterschiedlichen
-            Produkten. Die Datei wird nicht importiert.
-        </li>
-
-        <li>
-            <strong>Nicht gefunden:</strong>
-            Die erkannte SKU und/oder EAN konnte keinem
-            Produkt in den Stammdaten zugeordnet werden.
-        </li>
-
-        <li>
-            <strong>Keine T-Codes:</strong>
-            Die CSV-Datei enthält keine verwertbaren
-            T-Codes und wird deshalb nicht importiert.
-        </li>
-
-        <li>
-            <strong>Dateiname nicht erkannt:</strong>
-            SKU und Amazon-EAN konnten aus dem Dateinamen
-            nicht zuverlässig erkannt werden. Bitte prüfe,
-            ob der Dateiname dem üblichen Amazon-Schema
-            entspricht.
-        </li>
-
-    </ul>
-
-</section>
-
+    <!-- ===================================================
+         Output
+    ==================================================== -->
 
     <section class="help-section">
 
@@ -1209,6 +1063,10 @@
     </section>
 
 
+    <!-- ===================================================
+         Excel
+    ==================================================== -->
+
     <section class="help-section">
 
         <h3>
@@ -1225,7 +1083,7 @@
             <strong>Output</strong> mit den erzeugten
             Produkt- und T-Code-Daten sowie das Blatt
             <strong>Summary</strong> mit Importstatistik,
-            Problemdateien und ausführlichen Diagnosen.
+            Problemdateien und Diagnosen.
         </p>
 
         <p>
@@ -1237,10 +1095,14 @@
     </section>
 
 
+    <!-- ===================================================
+         Produktverwaltung
+    ==================================================== -->
+
     <section class="help-section">
 
         <h3>
-            Produktliste
+            Produktliste verwalten
         </h3>
 
         <p>
@@ -1250,14 +1112,179 @@
         </p>
 
         <p>
-            Beim Speichern werden Pflichtfelder,
-            EAN-13 einschließlich Prüfziffer, SKU und ASIN
-            geprüft. Doppelte ASIN-, SKU- oder EAN-Werte
-            werden nicht zugelassen.
+            Beim Speichern werden die Produktdaten geprüft.
+            Doppelte ASIN-, SKU- oder EAN-Werte werden
+            nicht zugelassen.
+        </p>
+
+        <p>
+            Änderungen werden zunächst auf diesem Rechner
+            gespeichert und bei bestehender Verbindung
+            automatisch mit dem zentralen Datenbestand
+            synchronisiert.
         </p>
 
     </section>
 
+
+    <!-- ===================================================
+         Firebase-Anmeldung
+    ==================================================== -->
+
+    <section class="help-section">
+
+        <h3>
+            Anmeldung und zentrale Produktdaten
+        </h3>
+
+        <p>
+            Für den Zugriff auf den zentralen Produktbestand
+            ist eine Anmeldung erforderlich.
+        </p>
+
+        <p>
+            Nach erfolgreicher Anmeldung verbindet sich die
+            Anwendung automatisch mit dem zentralen
+            Produktbestand und prüft, ob aktuellere Daten
+            vorhanden sind.
+        </p>
+
+        <p>
+            Über die Abmeldefunktion kann die Verbindung
+            zum Benutzerkonto beendet werden.
+        </p>
+
+    </section>
+
+
+    <!-- ===================================================
+         Synchronisation
+    ==================================================== -->
+
+    <section class="help-section">
+
+        <h3>
+            Automatische Synchronisation
+        </h3>
+
+        <p>
+            Bei bestehender Internetverbindung werden
+            Änderungen an den Produktstammdaten automatisch
+            zentral gespeichert.
+        </p>
+
+        <p>
+            Änderungen, die auf einem anderen angemeldeten
+            Computer vorgenommen werden, werden automatisch
+            erkannt und übernommen. Ein manuelles
+            Aktualisieren der Produktliste ist normalerweise
+            nicht erforderlich.
+        </p>
+
+        <p>
+            Dadurch können mehrere Computer mit demselben
+            aktuellen Produktbestand arbeiten.
+        </p>
+
+    </section>
+
+
+    <!-- ===================================================
+         Offline
+    ==================================================== -->
+
+    <section class="help-section">
+
+        <h3>
+            Arbeiten ohne Internetverbindung
+        </h3>
+
+        <p>
+            Wurde die Anwendung auf einem Computer bereits
+            erfolgreich verwendet, kann mit den dort
+            gespeicherten Produktdaten auch ohne
+            Internetverbindung weitergearbeitet werden.
+        </p>
+
+        <p>
+            Änderungen werden in diesem Fall zunächst lokal
+            gespeichert und als noch nicht synchronisiert
+            gekennzeichnet.
+        </p>
+
+        <p>
+            Sobald wieder eine Verbindung verfügbar ist,
+            versucht die Anwendung automatisch, die lokalen
+            Änderungen mit dem zentralen Produktbestand
+            abzugleichen.
+        </p>
+
+        <p>
+            Auf einem neuen Computer, auf dem die Anwendung
+            und die Produktdaten noch nie erfolgreich geladen
+            wurden, ist ein vollständiger Offline-Start nicht
+            möglich.
+        </p>
+
+    </section>
+
+
+    <!-- ===================================================
+         Konflikte
+    ==================================================== -->
+
+    <section class="help-section">
+
+        <h3>
+            Konflikte zwischen mehreren Computern
+        </h3>
+
+        <p>
+            Wird dasselbe Produkt auf zwei Computern
+            unterschiedlich geändert, verhindert die
+            Anwendung ein unbemerktes Überschreiben der
+            Daten.
+        </p>
+
+        <p>
+            In diesem Fall erscheint ein Konfliktfenster.
+            Dort werden die Änderung auf diesem Rechner
+            und der aktuelle zentrale Stand gegenübergestellt.
+        </p>
+
+        <p>
+            Anschließend kann entschieden werden, welcher
+            Stand übernommen werden soll:
+        </p>
+
+        <ul>
+
+            <li>
+                <strong>Lokale Änderungen übernehmen:</strong>
+                Die Änderung dieses Rechners wird als neuer
+                zentraler Stand gespeichert.
+            </li>
+
+            <li>
+                <strong>Zentralen Stand verwenden:</strong>
+                Die lokale Änderung wird verworfen und der
+                aktuelle zentrale Stand übernommen.
+            </li>
+
+        </ul>
+
+        <p>
+            Änderungen an unterschiedlichen Produkten können
+            automatisch zusammengeführt werden, sofern kein
+            direkter Konflikt besteht.
+        </p>
+
+    </section>
+
+
+    <!-- ===================================================
+         Sicherung
+    ==================================================== -->
 
     <section class="help-section">
 
@@ -1268,17 +1295,25 @@
         <p>
             Die aktuelle Produktliste kann als JSON-Datei
             exportiert und später wieder importiert werden.
+            Die JSON-Datei dient als zusätzliche manuelle
+            Sicherungsmöglichkeit.
         </p>
 
         <p>
             Beim JSON-Import wird die vorhandene Produktliste
-            vollständig ersetzt. Vorher erfolgt eine
-            Sicherheitsabfrage und die importierten Daten
-            werden auf gültige Struktur und Dubletten geprüft.
+            vollständig ersetzt. Die importierten Daten werden
+            vor der Übernahme auf gültige Struktur und
+            Dubletten geprüft.
         </p>
 
         <p>
-            Über „Auf Standard zurücksetzen“ können jederzeit
+            Vor dem Ersetzen der Produktdaten bietet die
+            Anwendung an, eine Sicherung des aktuellen
+            Datenbestands zu erstellen.
+        </p>
+
+        <p>
+            Über „Auf Standard zurücksetzen“ können außerdem
             die mit der Anwendung ausgelieferten
             Standard-Produktdaten wiederhergestellt werden.
         </p>
@@ -1286,31 +1321,55 @@
     </section>
 
 
+    <!-- ===================================================
+         Status
+    ==================================================== -->
+
     <section class="help-section">
 
         <h3>
-            Speicherung der Produktdaten
+            Synchronisationsstatus
         </h3>
 
         <p>
-            Änderungen an der Produktliste werden derzeit
-            lokal im Browser gespeichert.
+            Die Anwendung informiert über Meldungen und
+            Statusanzeigen über den aktuellen Zustand der
+            Produktdaten.
         </p>
 
-        <p>
-            Browser-Version und installierte PWA verwenden
-            auf demselben Computer dieselben gespeicherten
-            Produktdaten. Auf einem anderen Computer steht
-            dagegen ein eigener Datenbestand zur Verfügung.
-        </p>
+        <ul>
+
+            <li>
+                <strong>Synchronisiert:</strong>
+                Die lokalen Produktdaten entsprechen dem
+                zentral gespeicherten Stand.
+            </li>
+
+            <li>
+                <strong>Änderungen ausstehend:</strong>
+                Änderungen wurden lokal gespeichert und
+                müssen noch zentral synchronisiert werden.
+            </li>
+
+            <li>
+                <strong>Offline:</strong>
+                Die Anwendung arbeitet momentan ohne
+                Verbindung zum zentralen Datenbestand.
+            </li>
+
+        </ul>
 
         <p>
-            Für die Übertragung zwischen Computern kann die
-            JSON Export- und Importfunktion verwendet werden.
+            Nach erfolgreicher Synchronisation informiert
+            die Anwendung automatisch über den Abschluss.
         </p>
 
     </section>
 
+
+    <!-- ===================================================
+         Diagnose
+    ==================================================== -->
 
     <section class="help-section">
 
@@ -1327,22 +1386,27 @@
             Dabei werden unter anderem Programmversion,
             Excel-Engine, Dateizugriff, Drag & Drop,
             Produktdaten, Datenintegrität, Dubletten,
-            localStorage, Manifest, Service Worker,
-            Offline-Cache, Browser und Betriebssystem geprüft.
+            lokaler Speicher, Service Worker, Offline-Cache,
+            Browser und PWA-Umgebung geprüft.
         </p>
 
         <p>
             Warnungen und Fehler werden direkt im
-            Diagnose-Center angezeigt.
+            Diagnose-Center angezeigt und können bei der
+            Fehlersuche helfen.
         </p>
 
     </section>
 
 
+    <!-- ===================================================
+         PWA
+    ==================================================== -->
+
     <section class="help-section">
 
         <h3>
-            PWA und Offline-Betrieb
+            Installation als App (PWA)
         </h3>
 
         <p>
@@ -1354,20 +1418,22 @@
         <p>
             Nach einem erfolgreichen Online-Start werden die
             benötigten Programmdateien im Offline-Cache
-            gespeichert. Dadurch kann die Anwendung auch
-            ohne Internetverbindung gestartet und verwendet
-            werden.
+            gespeichert. Dadurch kann die Anwendung auf
+            diesem Computer später auch ohne aktive
+            Internetverbindung gestartet werden.
         </p>
 
         <p>
-            Sobald der Server wieder erreichbar ist,
-            aktualisiert die Anwendung ihren Cache wieder
-            mit den verfügbaren Programmdateien.
+            Programmdateien und Produktdaten werden dabei
+            getrennt behandelt: Der Offline-Cache stellt die
+            Anwendung bereit, während die Produktdaten lokal
+            gespeichert und bei bestehender Verbindung mit
+            dem zentralen Datenbestand synchronisiert werden.
         </p>
 
     </section>
 
-    </div>
+</div>
 
 
     <div class="dialog-button-bar">
