@@ -526,6 +526,7 @@ input[type="file"] {
     display: flex;
     justify-content: flex-end;
     align-items: center;
+    gap: 10px;
 
     padding: 16px 20px;
 
@@ -533,6 +534,15 @@ input[type="file"] {
     background: #fff;
 }
 
+
+#backupConfirmCancel {
+    background: #6c757d;
+    color: white;
+}
+
+#backupConfirmCancel:hover {
+    background: #5c636a;
+}
 /* ======================================================
    Tabellen
    ====================================================== */
@@ -802,7 +812,7 @@ tbody tr:hover {
     border: none;
     border-radius: 5px;
 
-    padding: 9px 14px;
+    padding: 11px 20px;
 
     background: #27313c;
     color: white;

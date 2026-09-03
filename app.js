@@ -3227,6 +3227,10 @@ async function processFiles(files) {
     exportButton.disabled =
         exportOutputRows.length === 0;
 
+    // Neuer Import aktivieren
+        newImportButton.disabled =
+            exportOutputRows.length === 0;
+
 
     console.log(
         "Importierte Dateien:",
@@ -3590,6 +3594,12 @@ function resetApplication() {
     // Excel-Button deaktivieren
     document.getElementById(
         "exportButton"
+    ).disabled = true;
+
+
+    // Neuer-Import-Button deaktivieren
+    document.getElementById(
+        "newImportButton"
     ).disabled = true;
 
 
@@ -4870,10 +4880,10 @@ function exportProductsJson() {
     // ---------------------------------------------------
 
     showNotification(
-        "success",
-        "JSON exportiert",
-        `${products.length} Produkte wurden erfolgreich als JSON-Datei exportiert.`,
-        5000
+        "info",
+        "JSON-Sicherung vorbereitet",
+        `${products.length} Produktdaten stehen zum Speichern bereit. Bitte beachten Sie das Downloadfenster Ihres Browsers.`,
+        7000
     );
 }
 
@@ -6935,6 +6945,30 @@ document
         }
     );
 
+
+    // =======================================================
+    // Neuer Import
+    // =======================================================
+
+document
+    .getElementById(
+        "newImportButton"
+    )
+    .addEventListener(
+        "click",
+        () => {
+
+            resetApplication();
+
+
+            showNotification(
+                "info",
+                "Neuer Import",
+                "Die Anwendung ist bereit für neue CSV-Dateien.",
+                3500
+            );
+        }
+    );
 
 document
     .getElementById(
