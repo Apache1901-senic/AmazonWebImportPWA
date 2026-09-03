@@ -8,13 +8,26 @@ const APP_INFO = {
 
     name: "Amazon CSV Importer",
 
-    version: "1.2.1",
+    version: "1.2.2",
 
     buildDate: "2026-09-03",
 
     author: ".::ST:HU::.",
 
     changelog: [
+
+        {
+            version: "1.2.2",
+            date: "2026-09-03",
+            changes: [
+                "Diagnose-Center um Firebase-, Firestore- und Synchronisationsprüfung erweitert",
+                "Direkter Start eines neuen Importvorgangs über „Neuer Import“ ergänzt",
+                "Benutzerführung bei JSON-Sicherungen verbessert",
+                "Hinweise zum Speichern von JSON-Sicherungen verständlicher gestaltet",
+                "Kleinere Bedienungs- und Layoutverbesserungen vorgenommen",
+                "Abschließende Funktions- und Mehr-PC-Tests erfolgreich durchgeführt"
+            ]
+        },
 
         {
             version: "1.2.1",
@@ -93,12 +106,13 @@ const APP_INFO = {
 
 };
 
+
 // =======================================================
 // Build-Kennung
 // =======================================================
 
 window.APP_BUILD =
-    "2026-09-02-06";
+    "2026-09-03-01";
 
 
 console.log(
