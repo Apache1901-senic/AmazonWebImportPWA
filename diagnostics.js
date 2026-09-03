@@ -202,6 +202,30 @@ function buildDiagnosticsInterface() {
         "localStorage"
     );
 
+    createDiagnosticRow(
+        productArea,
+        "diag-firebase-auth",
+        "Firebase-Anmeldung"
+    );
+
+    createDiagnosticRow(
+        productArea,
+        "diag-firestore",
+        "Firestore-Verbindung"
+    );
+
+    createDiagnosticRow(
+        productArea,
+        "diag-data-version",
+        "Produktdaten-Version"
+    );
+
+    createDiagnosticRow(
+        productArea,
+        "diag-sync-status",
+        "Synchronisation"
+    );
+
 
     // ---------------------------------------------------
     // PWA
@@ -845,7 +869,7 @@ async function runSystemDiagnostics() {
     let currentTest = 0;
 
 
-    const TOTAL_TESTS = 16;
+    const TOTAL_TESTS = 20;
 
 
     // ---------------------------------------------------
@@ -1105,9 +1129,311 @@ async function runSystemDiagnostics() {
 
     await step();
 
+    // ===================================================
+    // 9. Firebase-Anmeldung
+    // ===================================================
+
+    let firebaseAuthenticated =
+        false;
+
+
+    if (
+        typeof window.getFirebaseAuthInfo === "function"
+    ) {
+
+        const authInfo =
+            window.getFirebaseAuthInfo();
+
+
+        firebaseAuthenticated =
+            authInfo.authenticated;
+
+
+        if (
+            authInfo.authenticated
+        ) {
+
+            setDiagnosticResult(
+                "diag-firebase-auth",
+                `Angemeldet${authInfo.email ? " – " + authInfo.email : ""}`,
+                "ok"
+            );
+
+        }
+        else {
+
+            setDiagnosticResult(
+                "diag-firebase-auth",
+                "Nicht angemeldet",
+                navigator.onLine
+                    ? "warning"
+                    : "ok"
+            );
+
+
+            if (
+                navigator.onLine
+            ) {
+
+                warningCount++;
+            }
+        }
+
+    }
+    else {
+
+        setDiagnosticResult(
+            "diag-firebase-auth",
+            navigator.onLine
+                ? "Firebase nicht geladen"
+                : "Offline – Firebase nicht erforderlich",
+            navigator.onLine
+                ? "warning"
+                : "ok"
+        );
+
+
+        if (
+            navigator.onLine
+        ) {
+
+            warningCount++;
+        }
+    }
+
+
+    await step();
+
 
     // ===================================================
-    // 9. Manifest
+    // 10. Firestore-Verbindung
+    // ===================================================
+
+    let diagnosticCloudVersion =
+        null;
+
+
+    if (
+        !navigator.onLine
+    ) {
+
+        setDiagnosticResult(
+            "diag-firestore",
+            "Offline – zentraler Datenbestand derzeit nicht erreichbar",
+            "ok"
+        );
+
+    }
+    else if (
+        !firebaseAuthenticated
+    ) {
+
+        setDiagnosticResult(
+            "diag-firestore",
+            "Nicht geprüft – Firebase-Benutzer nicht angemeldet",
+            "warning"
+        );
+
+
+        warningCount++;
+
+    }
+    else if (
+        typeof window.getProductDataVersion !== "function"
+    ) {
+
+        setDiagnosticResult(
+            "diag-firestore",
+            "Firestore-Funktion nicht verfügbar",
+            "error"
+        );
+
+
+        errorCount++;
+
+    }
+    else {
+
+        diagnosticCloudVersion =
+            await window.getProductDataVersion();
+
+
+        if (
+            diagnosticCloudVersion !== null &&
+            diagnosticCloudVersion !== undefined
+        ) {
+
+            setDiagnosticResult(
+                "diag-firestore",
+                "Zentraler Produktbestand erreichbar",
+                "ok"
+            );
+
+        }
+        else {
+
+            setDiagnosticResult(
+                "diag-firestore",
+                "Zentraler Produktbestand konnte nicht gelesen werden",
+                "error"
+            );
+
+
+            errorCount++;
+        }
+    }
+
+
+    await step();
+
+
+    // ===================================================
+    // 11. Produktdaten-Version
+    // ===================================================
+
+    const localDataVersion =
+        getLocalProductDataVersion();
+
+
+    if (
+        !navigator.onLine
+    ) {
+
+        setDiagnosticResult(
+            "diag-data-version",
+            `Lokal ${localDataVersion} – zentrale Version offline nicht prüfbar`,
+            "ok"
+        );
+
+    }
+    else if (
+        diagnosticCloudVersion === null ||
+        diagnosticCloudVersion === undefined
+    ) {
+
+        setDiagnosticResult(
+            "diag-data-version",
+            `Lokal ${localDataVersion} – zentrale Version nicht verfügbar`,
+            "warning"
+        );
+
+
+        warningCount++;
+
+    }
+    else if (
+        Number(localDataVersion) ===
+        Number(diagnosticCloudVersion)
+    ) {
+
+        setDiagnosticResult(
+            "diag-data-version",
+            `Lokal ${localDataVersion} / Zentral ${diagnosticCloudVersion}`,
+            "ok"
+        );
+
+    }
+    else {
+
+        setDiagnosticResult(
+            "diag-data-version",
+            `Lokal ${localDataVersion} / Zentral ${diagnosticCloudVersion}`,
+            "warning"
+        );
+
+
+        warningCount++;
+    }
+
+
+    await step();
+
+
+    // ===================================================
+    // 12. Synchronisationsstatus
+    // ===================================================
+
+    const pendingChanges =
+        hasPendingProductChanges();
+
+
+    const localChanges =
+        hasLocalProductChangesComparedToBaseline();
+
+
+    if (
+        !navigator.onLine
+    ) {
+
+        if (
+            pendingChanges ||
+            localChanges
+        ) {
+
+            setDiagnosticResult(
+                "diag-sync-status",
+                "Offline – lokale Änderungen warten auf Synchronisation",
+                "ok"
+            );
+
+        }
+        else {
+
+            setDiagnosticResult(
+                "diag-sync-status",
+                "Offline – keine ausstehenden lokalen Änderungen",
+                "ok"
+            );
+        }
+
+    }
+    else if (
+        pendingChanges ||
+        localChanges
+    ) {
+
+        setDiagnosticResult(
+            "diag-sync-status",
+            "Lokale Änderungen warten auf Synchronisation",
+            "warning"
+        );
+
+
+        warningCount++;
+
+    }
+    else if (
+        diagnosticCloudVersion !== null &&
+        diagnosticCloudVersion !== undefined &&
+        Number(localDataVersion) !==
+            Number(diagnosticCloudVersion)
+    ) {
+
+        setDiagnosticResult(
+            "diag-sync-status",
+            "Lokaler und zentraler Datenstand unterscheiden sich",
+            "warning"
+        );
+
+
+        warningCount++;
+
+    }
+    else {
+
+        setDiagnosticResult(
+            "diag-sync-status",
+            "Produktdaten vollständig synchronisiert",
+            "ok"
+        );
+    }
+
+
+await step();
+
+
+    // ===================================================
+    // 13. Manifest
     // ===================================================
 
     try {
@@ -1151,7 +1477,7 @@ async function runSystemDiagnostics() {
 
 
     // ===================================================
-    // 10. Service Worker
+    // 14. Service Worker
     // ===================================================
 
     if (
@@ -1206,7 +1532,7 @@ async function runSystemDiagnostics() {
 
 
     // ===================================================
-    // 11. Offline-Cache
+    // 15. Offline-Cache
     // ===================================================
 
     if (
@@ -1268,7 +1594,7 @@ async function runSystemDiagnostics() {
 
 
     // ===================================================
-    // 12. Sicherer Browser-Kontext
+    // 16. Sicherer Browser-Kontext
     // ===================================================
 
     if (
@@ -1298,7 +1624,7 @@ async function runSystemDiagnostics() {
 
 
     // ===================================================
-    // 13. App-Modus
+    // 17. App-Modus
     // ===================================================
 
     const standalone =
@@ -1330,7 +1656,7 @@ async function runSystemDiagnostics() {
 
 
     // ===================================================
-    // 14. Netzwerkstatus
+    // 18. Netzwerkstatus
     // ===================================================
 
     if (
@@ -1358,7 +1684,7 @@ async function runSystemDiagnostics() {
 
 
     // ===================================================
-    // 15. Browser
+    // 19. Browser
     // ===================================================
 
     setDiagnosticResult(
@@ -1372,7 +1698,7 @@ async function runSystemDiagnostics() {
 
 
     // ===================================================
-    // 16. Betriebssystem
+    // 20. Betriebssystem
     // ===================================================
 
     setDiagnosticResult(

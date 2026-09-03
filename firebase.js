@@ -337,23 +337,48 @@ onAuthStateChanged(
     }
 );
 
-function stopProductVersionListener() {
-
-    if (
-        unsubscribeProductVersionListener !== null
-    ) {
-
-        unsubscribeProductVersionListener();
-
-        unsubscribeProductVersionListener =
-            null;
 
 
-        console.log(
-            "Firestore Live-Synchronisation beendet."
-        );
+    // =======================================================
+    // Firebase-Anmeldestatus für Diagnose bereitstellen
+    // =======================================================
+
+    function getFirebaseAuthInfo() {
+
+        const user =
+            firebaseAuth.currentUser;
+
+
+        return {
+            authenticated:
+                user !== null,
+
+            email:
+                user?.email ?? null
+        };
     }
-} 
+
+
+    window.getFirebaseAuthInfo =
+        getFirebaseAuthInfo;
+
+    function stopProductVersionListener() {
+
+        if (
+            unsubscribeProductVersionListener !== null
+        ) {
+
+            unsubscribeProductVersionListener();
+
+            unsubscribeProductVersionListener =
+                null;
+
+
+            console.log(
+                "Firestore Live-Synchronisation beendet."
+            );
+        }
+    } 
 // =======================================================
 // Funktionen global bereitstellen
 // =======================================================
